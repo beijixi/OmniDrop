@@ -82,7 +82,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           id="internalShareBaseUrl"
           value={internalShareBaseUrl}
           onChange={(event) => setInternalShareBaseUrl(event.target.value)}
-          placeholder="http://192.168.1.10:3000"
+          placeholder="http://<your-internal-host>:3000"
           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brandSoft"
         />
         <p className="text-xs text-slate-500">{t("settings.internal_share_base_url_help")}</p>

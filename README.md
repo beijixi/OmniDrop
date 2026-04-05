@@ -258,7 +258,7 @@ STORAGE_DIR="./storage/uploads"
 
 ```env
 STORAGE_DRIVER="s3"
-S3_ENDPOINT="https://your-s3-endpoint"
+S3_ENDPOINT="https://<your-s3-endpoint>"
 S3_REGION="auto"
 S3_BUCKET="omnidrop"
 S3_ACCESS_KEY_ID="..."
@@ -280,7 +280,7 @@ WEBDAV_PASSWORD="..."
 
 ```env
 NEXT_PUBLIC_APP_URL="https://drop.example.com"
-INTERNAL_APP_URL="http://192.168.1.10:3000"
+INTERNAL_APP_URL="http://<your-internal-host>:3000"
 ```
 
 - `NEXT_PUBLIC_APP_URL` 用于公网分享链接

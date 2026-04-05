@@ -6,7 +6,7 @@ ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 COMPOSE_FILE="$ROOT_DIR/docker-compose.prod.yml"
 ENV_FILE="$ROOT_DIR/.env"
 IMAGE_TAG_INPUT="${1:-${IMAGE_TAG:-main}}"
-IMAGE_NAME_INPUT="${IMAGE_NAME:-ghcr.io/beijixi/omnidrop}"
+IMAGE_NAME_INPUT="${IMAGE_NAME:-}"
 APP_PORT_INPUT="${APP_PORT:-6789}"
 
 if [ ! -f "$COMPOSE_FILE" ]; then
@@ -16,6 +16,11 @@ fi
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "Missing .env in $ROOT_DIR"
+  exit 1
+fi
+
+if [ -z "$IMAGE_NAME_INPUT" ]; then
+  echo "Missing IMAGE_NAME in .env"
   exit 1
 fi
 

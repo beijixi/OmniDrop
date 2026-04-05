@@ -6,7 +6,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-    image: ${IMAGE_NAME:-ghcr.io/beijixi/omnidrop}:${IMAGE_TAG:-main}
+    image: ${IMAGE_NAME:?IMAGE_NAME is required}:${IMAGE_TAG:-main}
     ports:
       - "${APP_PORT:-6789}:3000"
     restart: unless-stopped

@@ -19,6 +19,10 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
+set -a
+. "$ENV_FILE"
+set +a
+
 if [ -z "$IMAGE_NAME_INPUT" ]; then
   echo "Missing IMAGE_NAME in .env"
   exit 1

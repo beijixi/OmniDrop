@@ -40,6 +40,7 @@ export default async function SharePage({ params }: SharePageProps) {
         entry={entry}
         locale={locale}
         publicView
+        shareToken={params.token}
       />
     </div>
   );

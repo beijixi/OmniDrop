@@ -14,6 +14,7 @@ type EntryCardProps = {
   entry: EntryWithRelations;
   locale: AppLocale;
   publicView?: boolean;
+  shareToken?: string | null;
   viewerIp?: string | null;
 };
 
@@ -21,13 +22,15 @@ export async function EntryCard({
   entry,
   locale,
   publicView = false,
+  shareToken = null,
   viewerIp = null
 }: EntryCardProps) {
   const displaySenderName =
     entry.senderName === "current-device" || entry.senderName === "当前设备"
       ? t(locale, "entry.local_source")
       : entry.senderName;
-  const assetPath = (assetId: string) => `/api/v1/assets/${assetId}`;
+  const assetPath = (assetId: string) =>
+    publicView && shareToken ? `/api/share/${shareToken}/assets/${assetId}` : `/api/v1/assets/${assetId}`;
   const imageAssets = entry.assets.filter((asset) => asset.kind === "IMAGE");
   const nonImageAssets = entry.assets.filter((asset) => asset.kind !== "IMAGE");
   const visibleIp = isIpv4Address(entry.senderIp) ? entry.senderIp : null;

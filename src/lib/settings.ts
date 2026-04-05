@@ -15,23 +15,31 @@ const settingKeys = {
 } as const;
 
 export async function getSettings(): Promise<AppSettings> {
-  const rows = await prisma.appSetting.findMany({
-    where: {
-      key: {
-        in: [settingKeys.appName, settingKeys.shareBaseUrl, settingKeys.internalShareBaseUrl]
+  try {
+    const rows = await prisma.appSetting.findMany({
+      where: {
+        key: {
+          in: [settingKeys.appName, settingKeys.shareBaseUrl, settingKeys.internalShareBaseUrl]
+        }
       }
-    }
-  });
+    });
 
-  const settingsMap = new Map(rows.map((row) => [row.key, row.value]));
+    const settingsMap = new Map(rows.map((row) => [row.key, row.value]));
 
-  return {
-    appName: settingsMap.get(settingKeys.appName) || env.appName,
-    shareBaseUrl: sanitizeBaseUrl(settingsMap.get(settingKeys.shareBaseUrl) || env.publicAppUrl),
-    internalShareBaseUrl: sanitizeOptionalBaseUrl(
-      settingsMap.get(settingKeys.internalShareBaseUrl) || env.internalAppUrl
-    )
-  };
+    return {
+      appName: settingsMap.get(settingKeys.appName) || env.appName,
+      shareBaseUrl: sanitizeBaseUrl(settingsMap.get(settingKeys.shareBaseUrl) || env.publicAppUrl),
+      internalShareBaseUrl: sanitizeOptionalBaseUrl(
+        settingsMap.get(settingKeys.internalShareBaseUrl) || env.internalAppUrl
+      )
+    };
+  } catch {
+    return {
+      appName: env.appName,
+      shareBaseUrl: sanitizeBaseUrl(env.publicAppUrl),
+      internalShareBaseUrl: sanitizeOptionalBaseUrl(env.internalAppUrl)
+    };
+  }
 }
 
 export async function saveSettings(input: {

@@ -1,0 +1,10 @@
+.git
+.github
+.next
+node_modules
+npm-debug.log
+storage/uploads
+.env
+.env.local
+.env.production
+.DS_Store

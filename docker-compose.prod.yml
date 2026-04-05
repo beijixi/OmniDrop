@@ -1,0 +1,14 @@
+services:
+  app:
+    container_name: omnidrop-app
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    image: ${IMAGE_NAME:-ghcr.io/beijixi/omnidrop}:${IMAGE_TAG:-main}
+    ports:
+      - "${APP_PORT:-6789}:3000"
+    restart: unless-stopped
+    volumes:
+      - ./storage/uploads:/app/storage/uploads

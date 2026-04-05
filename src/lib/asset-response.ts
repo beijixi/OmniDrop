@@ -15,17 +15,32 @@ import {
   getWebDavAuthHeaders
 } from "@/lib/storage";
 
-export async function streamAssetResponse(request: Request, assetId: string) {
-  const asset = await prisma.asset.findUnique({
+export type StreamableAsset = {
+  mimeType: string;
+  originalName: string;
+  relativePath: string;
+  storageDriver: StorageDriver;
+};
+
+export async function findAssetById(assetId: string) {
+  return prisma.asset.findUnique({
     where: {
       id: assetId
     }
   });
+}
+
+export async function streamAssetResponse(request: Request, assetId: string) {
+  const asset = await findAssetById(assetId);
 
   if (!asset) {
     return NextResponse.json({ error: "文件不存在。" }, { status: 404 });
   }
 
+  return streamStoredAssetResponse(request, asset);
+}
+
+export async function streamStoredAssetResponse(request: Request, asset: StreamableAsset) {
   switch (asset.storageDriver) {
     case StorageDriver.S3:
       return streamS3AssetResponse(request, asset);
@@ -38,11 +53,7 @@ export async function streamAssetResponse(request: Request, assetId: string) {
 
 async function streamLocalAssetResponse(
   request: Request,
-  asset: {
-    mimeType: string;
-    originalName: string;
-    relativePath: string;
-  }
+  asset: StreamableAsset
 ) {
   const filePath = getLocalStoredFilePath(asset.relativePath);
 
@@ -96,11 +107,7 @@ async function streamLocalAssetResponse(
 
 async function streamS3AssetResponse(
   request: Request,
-  asset: {
-    mimeType: string;
-    originalName: string;
-    relativePath: string;
-  }
+  asset: StreamableAsset
 ) {
   try {
     const result = await getS3Client().send(
@@ -144,11 +151,7 @@ async function streamS3AssetResponse(
 
 async function streamWebDavAssetResponse(
   request: Request,
-  asset: {
-    mimeType: string;
-    originalName: string;
-    relativePath: string;
-  }
+  asset: StreamableAsset
 ) {
   try {
     const upstream = await fetch(buildWebDavFileUrl(asset.relativePath), {

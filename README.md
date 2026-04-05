@@ -16,6 +16,7 @@ OmniDrop 是一个面向个人使用的数字抽屉 Web 应用。它把文本消
 - 记录发送来源，显示发送者、IPv4、主机名
 - 国际化界面：`zh-CN / en / ja / fr / de / es`
 - 多存储后端：`local / S3-compatible / WebDAV`
+- 支持公网密码门禁，分享链接可独立免密访问
 
 ## 文件支持
 
@@ -58,15 +59,25 @@ OmniDrop 是一个面向个人使用的数字抽屉 Web 应用。它把文本消
 
 ```text
 .
+├── .github/
+│   └── workflows/
+│       └── build-image.yml
+├── docs/
+│   └── deployment.md
 ├── prisma/
 │   └── schema.prisma
+├── scripts/
+│   ├── deploy.sh
+│   └── rollback.sh
 ├── src/
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── assets/[id]/route.ts
+│   │   │   ├── auth/unlock/route.ts
 │   │   │   ├── entries/[id]/route.ts
 │   │   │   ├── entries/[id]/share/route.ts
 │   │   │   ├── entries/route.ts
+│   │   │   ├── share/[token]/assets/[id]/route.ts
 │   │   │   ├── settings/route.ts
 │   │   │   └── v1/
 │   │   │       ├── assets/[id]/route.ts
@@ -76,6 +87,7 @@ OmniDrop 是一个面向个人使用的数字抽屉 Web 应用。它把文本消
 │   │   │       └── settings/route.ts
 │   │   ├── settings/page.tsx
 │   │   ├── share/[token]/page.tsx
+│   │   ├── unlock/page.tsx
 │   │   ├── globals.css
 │   │   ├── layout.tsx
 │   │   ├── not-found.tsx
@@ -89,7 +101,9 @@ OmniDrop 是一个面向个人使用的数字抽屉 Web 应用。它把文本消
 │   │   ├── locale-switcher.tsx
 │   │   ├── settings-form.tsx
 │   │   └── timeline-toolbar.tsx
+│   ├── middleware.ts
 │   └── lib/
+│       ├── access-control.ts
 │       ├── api-response.ts
 │       ├── api-serializers.ts
 │       ├── asset-previews.ts
@@ -108,6 +122,9 @@ OmniDrop 是一个面向个人使用的数字抽屉 Web 应用。它把文本消
 ├── storage/
 │   └── uploads/
 ├── .env.example
+├── .dockerignore
+├── Dockerfile
+├── docker-compose.prod.yml
 ├── docker-compose.yml
 ├── next.config.mjs
 ├── package.json
@@ -183,6 +200,8 @@ STORAGE_DRIVER="local"
 STORAGE_DIR="./storage/uploads"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 INTERNAL_APP_URL=""
+PUBLIC_ACCESS_PASSWORD=""
+ACCESS_AUTH_SECRET=""
 
 S3_ENDPOINT=""
 S3_REGION="auto"
@@ -267,6 +286,27 @@ INTERNAL_APP_URL="http://192.168.1.10:3000"
 - `NEXT_PUBLIC_APP_URL` 用于公网分享链接
 - `INTERNAL_APP_URL` 用于内网分享链接
 - 分享菜单会同时提供公网和内网两个复制入口
+
+## 访问控制
+
+```env
+PUBLIC_ACCESS_PASSWORD=""
+ACCESS_AUTH_SECRET=""
+```
+
+- 未设置 `PUBLIC_ACCESS_PASSWORD` 时，不启用公网密码门禁
+- 设置后：
+  - 内网主机地址可直接访问
+  - 公网主机地址需要先通过 `/unlock`
+  - `/share/:token` 和对应的分享资源访问保持免密
+- `ACCESS_AUTH_SECRET` 建议单独设置，用于签名公网访问 cookie；未设置时会回退使用 `PUBLIC_ACCESS_PASSWORD`
+
+## 生产部署
+
+- 生产环境变量应保存在部署主机，不提交到仓库
+- GitHub Actions 负责构建并推送镜像
+- 部署主机负责保存 `.env`、挂载上传目录并执行部署脚本
+- 详细部署步骤见 [docs/deployment.md](./docs/deployment.md)
 
 ## 可用脚本
 

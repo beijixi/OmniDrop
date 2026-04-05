@@ -10,11 +10,13 @@ export async function POST(request: Request) {
     const payload = (await request.json()) as {
       appName?: string;
       shareBaseUrl?: string;
+      internalShareBaseUrl?: string;
     };
 
     const settings = await saveSettings({
-      appName: payload.appName || "",
-      shareBaseUrl: payload.shareBaseUrl || ""
+      appName: payload.appName,
+      shareBaseUrl: payload.shareBaseUrl || "",
+      internalShareBaseUrl: payload.internalShareBaseUrl
     });
 
     revalidatePath("/");

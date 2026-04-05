@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import "@/app/globals.css";
+import { I18nProvider } from "@/components/i18n-provider";
+import { getServerI18n } from "@/lib/i18n-server";
 import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
@@ -16,48 +18,55 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { locale, messages } = getServerI18n();
   const settings = await getSettings();
 
   return (
-    <html lang="zh-CN">
+    <html lang={locale}>
       <body className="antialiased">
-        <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-          <div className="ambient-grid absolute inset-0 opacity-[0.16]" />
-          <div className="aurora-orb aurora-orb-a" />
-          <div className="aurora-orb aurora-orb-b" />
-          <div className="aurora-orb aurora-orb-c" />
-          <div className="noise-layer absolute inset-0 opacity-[0.18]" />
-        </div>
+        <I18nProvider locale={locale}>
+          <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+            <div className="ambient-grid absolute inset-0 opacity-[0.16]" />
+            <div className="aurora-orb aurora-orb-a" />
+            <div className="aurora-orb aurora-orb-b" />
+            <div className="aurora-orb aurora-orb-c" />
+            <div className="noise-layer absolute inset-0 opacity-[0.18]" />
+          </div>
 
-        <div className="min-h-screen">
-          <header className="sticky top-0 z-30 px-2 pt-2 sm:px-5 sm:pt-4">
-            <div className="nav-dock mx-auto flex max-w-5xl items-center justify-between gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
-              <Link href="/" className="flex min-w-0 items-center gap-2.5">
-                <div className="brand-mark">
-                  <span className="relative z-[1] text-sm font-semibold text-white">O</span>
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-900 sm:text-[15px]">
-                    {settings.appName}
-                  </p>
-                </div>
-              </Link>
-
-              <nav className="flex items-center gap-2">
+          <div className="min-h-screen">
+            <header className="sticky top-0 z-30 px-2 pt-2 sm:px-5 sm:pt-4">
+              <div className="nav-dock mx-auto flex max-w-5xl items-center justify-between gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
                 <Link
-                  href="/settings"
-                  aria-label="打开设置"
-                  className="glass-button inline-flex h-10 items-center justify-center gap-2 rounded-full px-3 text-sm font-medium text-slate-700 transition hover:-translate-y-[1px] hover:text-slate-950 sm:px-4"
+                  href="/"
+                  aria-label={settings.appName}
+                  title={settings.appName}
+                  className="flex shrink-0 items-center"
                 >
-                  <SettingsIcon />
-                  <span className="hidden sm:inline">设置</span>
+                  <div className="brand-mark">
+                    <span className="relative z-[1] text-sm font-semibold text-white">O</span>
+                  </div>
                 </Link>
-              </nav>
-            </div>
-          </header>
 
-          <main className="mx-auto max-w-5xl px-3 py-3 sm:px-6 sm:py-4">{children}</main>
-        </div>
+                <nav className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+                  <div
+                    id="header-extras"
+                    className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2"
+                  />
+                  <Link
+                    href="/settings"
+                    aria-label={messages["header.settings"]}
+                    className="glass-button inline-flex h-9 items-center justify-center gap-2 rounded-full px-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-[1px] hover:text-slate-950 sm:h-10 sm:px-4"
+                  >
+                    <SettingsIcon />
+                    <span className="hidden sm:inline">{messages["header.settings"]}</span>
+                  </Link>
+                </nav>
+              </div>
+            </header>
+
+            <main className="mx-auto max-w-5xl px-3 py-3 sm:px-6 sm:py-4">{children}</main>
+          </div>
+        </I18nProvider>
       </body>
     </html>
   );

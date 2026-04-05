@@ -23,10 +23,16 @@ enum AssetKind {
   FILE
 }
 
+enum StorageDriver {
+  LOCAL
+  S3
+  WEBDAV
+}
+
 model Entry {
   id        String      @id @default(cuid())
   type      EntryType
-  senderName String     @default("当前设备")
+  senderName String     @default("current-device")
   senderIp   String?
   senderHost String?
   message   String?     @db.Text
@@ -46,6 +52,7 @@ model Asset {
   entryId       String
   entry         Entry     @relation(fields: [entryId], references: [id], onDelete: Cascade)
   kind          AssetKind
+  storageDriver StorageDriver @default(LOCAL)
   originalName  String
   storedName    String    @unique
   relativePath  String
@@ -54,6 +61,7 @@ model Asset {
   createdAt     DateTime  @default(now())
 
   @@index([entryId, createdAt])
+  @@index([storageDriver, createdAt])
 }
 
 model Tag {

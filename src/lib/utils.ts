@@ -19,10 +19,10 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
-export function formatDateTime(input: Date | string): string {
+export function formatDateTime(input: Date | string, locale = "zh-CN"): string {
   const value = typeof input === "string" ? new Date(input) : input;
 
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(value);
@@ -55,6 +55,21 @@ export function isIpv4Address(value: string | null | undefined): boolean {
     const number = Number(part);
     return number >= 0 && number <= 255;
   });
+}
+
+export function isPrivateIpv4Address(value: string | null | undefined): boolean {
+  if (!isIpv4Address(value)) {
+    return false;
+  }
+
+  const [first, second] = (value || "").split(".").map(Number);
+
+  return (
+    first === 10 ||
+    first === 127 ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168)
+  );
 }
 
 export function normalizeTagList(raw: string): string[] {

@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
-import { NextResponse } from "next/server";
 
+import { apiErrorFromUnknown, apiOk } from "@/lib/api-response";
 import { createShareLink, revokeShareLink } from "@/lib/entries";
 import { buildShareUrlSet } from "@/lib/share-links";
 import { getSettings } from "@/lib/settings";
@@ -27,47 +27,43 @@ export async function POST(request: Request, { params }: ShareRouteProps) {
 
     revalidatePath("/");
 
-    return NextResponse.json({
-      ok: true,
+    return apiOk({
       share: {
         internalUrl: shareUrls.internalUrl,
         preferredMode: shareUrls.preferredMode,
         preferredUrl: shareUrls.preferredUrl,
         publicUrl: shareUrls.publicUrl,
-        revokedAt: shareLink.revokedAt,
+        revokedAt: shareLink.revokedAt?.toISOString() || null,
         token: shareLink.token,
         url: shareUrls.preferredUrl
       }
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "生成分享链接失败。"
-      },
-      {
-        status: 400
-      }
-    );
+    return apiErrorFromUnknown(error, {
+      code: "CREATE_SHARE_FAILED",
+      message: "生成分享链接失败。",
+      status: 400
+    });
   }
 }
 
 export async function DELETE(_request: Request, { params }: ShareRouteProps) {
   try {
-    await revokeShareLink(params.id);
+    const shareLink = await revokeShareLink(params.id);
 
     revalidatePath("/");
 
-    return NextResponse.json({
-      ok: true
+    return apiOk({
+      share: {
+        revokedAt: shareLink?.revokedAt?.toISOString() || new Date().toISOString(),
+        url: null
+      }
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "撤销分享失败。"
-      },
-      {
-        status: 400
-      }
-    );
+    return apiErrorFromUnknown(error, {
+      code: "REVOKE_SHARE_FAILED",
+      message: "撤销分享失败。",
+      status: 400
+    });
   }
 }

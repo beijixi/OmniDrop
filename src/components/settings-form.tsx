@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useI18n } from "@/components/i18n-provider";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import type { AppSettings } from "@/lib/settings";
 
 type SettingsFormProps = {
@@ -11,8 +13,11 @@ type SettingsFormProps = {
 
 export function SettingsForm({ initialSettings }: SettingsFormProps) {
   const router = useRouter();
-  const [appName, setAppName] = useState(initialSettings.appName);
+  const { t } = useI18n();
   const [shareBaseUrl, setShareBaseUrl] = useState(initialSettings.shareBaseUrl);
+  const [internalShareBaseUrl, setInternalShareBaseUrl] = useState(
+    initialSettings.internalShareBaseUrl
+  );
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -22,24 +27,28 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
     setStatus("");
 
     try {
-      const response = await fetch("/api/settings", {
-        method: "POST",
+      const response = await fetch("/api/v1/settings", {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          appName,
-          shareBaseUrl
+          shareBaseUrl,
+          internalShareBaseUrl
         })
       });
 
-      const payload = (await response.json()) as { error?: string };
+      const payload = (await response.json()) as {
+        error?: {
+          message?: string;
+        };
+      };
 
       if (!response.ok) {
-        throw new Error(payload.error || "保存设置失败。");
+        throw new Error(payload.error?.message || t("settings.save"));
       }
 
-      setStatus("设置已保存");
+      setStatus(t("settings.saved"));
       router.refresh();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "保存失败");
@@ -51,28 +60,9 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="panel space-y-6 p-6">
-      <div>
-        <p className="text-lg font-semibold text-slate-900">基础设置</p>
-        <p className="mt-1 text-sm text-slate-500">
-          这里只保留 MVP 必要项，尽量简单且可直接使用。
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <label htmlFor="appName" className="text-sm font-medium text-slate-700">
-          应用名称
-        </label>
-        <input
-          id="appName"
-          value={appName}
-          onChange={(event) => setAppName(event.target.value)}
-          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brandSoft"
-        />
-      </div>
-
       <div className="space-y-2">
         <label htmlFor="shareBaseUrl" className="text-sm font-medium text-slate-700">
-          分享链接基础地址
+          {t("settings.public_share_base_url")}
         </label>
         <input
           id="shareBaseUrl"
@@ -81,18 +71,24 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           placeholder="http://localhost:3000"
           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brandSoft"
         />
-        <p className="text-xs text-slate-500">生成分享链接时会使用这个地址。</p>
+        <p className="text-xs text-slate-500">{t("settings.public_share_base_url_help")}</p>
       </div>
 
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4">
-        <p className="text-sm font-medium text-slate-700">本地文件存储目录</p>
-        <p className="mt-1 break-all font-mono text-xs text-slate-500">
-          {initialSettings.storageDir}
-        </p>
-        <p className="mt-2 text-xs text-slate-500">
-          该路径由环境变量 `STORAGE_DIR` 控制，MVP 设置页只展示，不在页面内修改。
-        </p>
+      <div className="space-y-2">
+        <label htmlFor="internalShareBaseUrl" className="text-sm font-medium text-slate-700">
+          {t("settings.internal_share_base_url")}
+        </label>
+        <input
+          id="internalShareBaseUrl"
+          value={internalShareBaseUrl}
+          onChange={(event) => setInternalShareBaseUrl(event.target.value)}
+          placeholder="http://192.168.1.10:3000"
+          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brandSoft"
+        />
+        <p className="text-xs text-slate-500">{t("settings.internal_share_base_url_help")}</p>
       </div>
+
+      <LocaleSwitcher variant="field" />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-sm text-slate-500">{status}</span>
@@ -101,7 +97,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           disabled={isSubmitting}
           className="rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? "保存中..." : "保存设置"}
+          {isSubmitting ? t("settings.saving") : t("settings.save")}
         </button>
       </div>
     </form>

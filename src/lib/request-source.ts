@@ -11,7 +11,7 @@ export type SenderInfo = {
 
 export async function resolveSenderFromRequest(request: Request): Promise<SenderInfo> {
   const hostHeader = request.headers.get("host") || "";
-  const headerIp = readClientIp(request.headers);
+  const headerIp = getClientIpv4FromHeaders(request.headers);
   const fallbackIp = isLocalHostHeader(hostHeader) ? "127.0.0.1" : null;
   const senderIp = headerIp || fallbackIp;
   let senderHost: string | null = null;
@@ -34,11 +34,11 @@ export async function resolveSenderFromRequest(request: Request): Promise<Sender
   return {
     senderHost,
     senderIp,
-    senderName: senderHost || senderIp || "当前设备"
+    senderName: senderHost || senderIp || "current-device"
   };
 }
 
-function readClientIp(headers: Headers): string | null {
+export function getClientIpv4FromHeaders(headers: Headers): string | null {
   const candidates = [
     headers.get("x-forwarded-for"),
     headers.get("x-real-ip"),
@@ -55,6 +55,11 @@ function readClientIp(headers: Headers): string | null {
   }
 
   return null;
+}
+
+export function resolveViewerIpv4FromHeaders(headers: Headers): string | null {
+  const hostHeader = headers.get("host") || "";
+  return getClientIpv4FromHeaders(headers) || (isLocalHostHeader(hostHeader) ? "127.0.0.1" : null);
 }
 
 function parseIpCandidate(raw: string | null): string | null {
@@ -87,6 +92,6 @@ function parseIpCandidate(raw: string | null): string | null {
   return isIpv4Address(value) ? value : null;
 }
 
-function isLocalHostHeader(hostHeader: string): boolean {
+export function isLocalHostHeader(hostHeader: string): boolean {
   return hostHeader.startsWith("localhost") || hostHeader.startsWith("127.0.0.1");
 }

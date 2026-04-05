@@ -125,7 +125,9 @@ export async function EntryCard({
                           align === "right" ? "text-white" : "text-slate-800"
                         )}
                       >
-                        <p className="whitespace-pre-wrap break-words">{entry.message}</p>
+                        <p className="whitespace-pre-wrap break-words">
+                          {renderMessageText(entry.message, align)}
+                        </p>
                       </div>
                     </section>
                   ) : null}
@@ -322,6 +324,121 @@ export async function EntryCard({
       </div>
     </article>
   );
+}
+
+function renderMessageText(message: string, align: "left" | "right"): ReactNode {
+  const matches = [...message.matchAll(/(?:https?:\/\/|www\.)[^\s<]+/gi)];
+
+  if (matches.length === 0) {
+    return message;
+  }
+
+  const nodes: ReactNode[] = [];
+  let cursor = 0;
+
+  for (const [index, match] of matches.entries()) {
+    const start = match.index ?? 0;
+    const rawUrl = match[0];
+
+    if (start > cursor) {
+      nodes.push(message.slice(cursor, start));
+    }
+
+    const { cleanUrl, trailingText } = splitTrailingUrlText(rawUrl);
+    const href = normalizeExternalUrl(cleanUrl);
+
+    if (href) {
+      nodes.push(
+        <a
+          key={`message-link-${index}-${start}`}
+          href={href}
+          target="_blank"
+          rel="noreferrer noopener"
+          className={cn(
+            "break-all underline decoration-1 underline-offset-4 transition",
+            align === "right"
+              ? "text-white/95 decoration-white/45 hover:text-white hover:decoration-white"
+              : "text-cyan-700 decoration-cyan-300 hover:text-cyan-800 hover:decoration-cyan-500"
+          )}
+        >
+          {cleanUrl}
+        </a>
+      );
+    } else {
+      nodes.push(cleanUrl);
+    }
+
+    if (trailingText) {
+      nodes.push(trailingText);
+    }
+
+    cursor = start + rawUrl.length;
+  }
+
+  if (cursor < message.length) {
+    nodes.push(message.slice(cursor));
+  }
+
+  return nodes;
+}
+
+function normalizeExternalUrl(input: string): string | null {
+  const candidate = input.startsWith("www.") ? `https://${input}` : input;
+
+  try {
+    const parsed = new URL(candidate);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function splitTrailingUrlText(value: string) {
+  let cleanUrl = value;
+  let trailingText = "";
+
+  while (cleanUrl.length > 0) {
+    const lastCharacter = cleanUrl.at(-1);
+
+    if (!lastCharacter) {
+      break;
+    }
+
+    if (".,!?;:".includes(lastCharacter)) {
+      trailingText = `${lastCharacter}${trailingText}`;
+      cleanUrl = cleanUrl.slice(0, -1);
+      continue;
+    }
+
+    if (lastCharacter === ")" && countChar(cleanUrl, ")") > countChar(cleanUrl, "(")) {
+      trailingText = `${lastCharacter}${trailingText}`;
+      cleanUrl = cleanUrl.slice(0, -1);
+      continue;
+    }
+
+    if (lastCharacter === "]" && countChar(cleanUrl, "]") > countChar(cleanUrl, "[")) {
+      trailingText = `${lastCharacter}${trailingText}`;
+      cleanUrl = cleanUrl.slice(0, -1);
+      continue;
+    }
+
+    if (lastCharacter === "}" && countChar(cleanUrl, "}") > countChar(cleanUrl, "{")) {
+      trailingText = `${lastCharacter}${trailingText}`;
+      cleanUrl = cleanUrl.slice(0, -1);
+      continue;
+    }
+
+    break;
+  }
+
+  return {
+    cleanUrl,
+    trailingText
+  };
+}
+
+function countChar(value: string, character: string) {
+  return [...value].filter((item) => item === character).length;
 }
 
 type AssetFooterProps = {

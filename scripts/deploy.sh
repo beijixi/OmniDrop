@@ -39,7 +39,7 @@ echo "Pulling image $IMAGE_NAME:$IMAGE_TAG"
 docker compose -f "$COMPOSE_FILE" pull app
 
 echo "Applying Prisma schema"
-docker compose -f "$COMPOSE_FILE" run --rm --no-deps app npx prisma db push
+docker compose -f "$COMPOSE_FILE" run --rm --no-deps app node node_modules/prisma/build/index.js db push --schema prisma/schema.prisma
 
 echo "Starting OmniDrop"
 docker compose -f "$COMPOSE_FILE" up -d --remove-orphans

@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EntryType {
+  TEXT
+  IMAGE
+  VIDEO
+  PDF
+  FILE
+  MIXED
+}
+
+enum AssetKind {
+  IMAGE
+  VIDEO
+  PDF
+  FILE
+}
+
+model Entry {
+  id        String      @id @default(cuid())
+  type      EntryType
+  senderName String     @default("当前设备")
+  senderIp   String?
+  senderHost String?
+  message   String?     @db.Text
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  assets    Asset[]
+  tags      EntryTag[]
+  shareLink ShareLink?
+
+  @@index([type, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([senderName, createdAt(sort: Desc)])
+}
+
+model Asset {
+  id           String    @id @default(cuid())
+  entryId       String
+  entry         Entry     @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  kind          AssetKind
+  originalName  String
+  storedName    String    @unique
+  relativePath  String
+  mimeType      String
+  size          Int
+  createdAt     DateTime  @default(now())
+
+  @@index([entryId, createdAt])
+}
+
+model Tag {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  entries   EntryTag[]
+}
+
+model EntryTag {
+  entryId   String
+  tagId     String
+  createdAt DateTime @default(now())
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([entryId, tagId])
+  @@index([tagId, entryId])
+}
+
+model ShareLink {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  entryId    String    @unique
+  entry      Entry     @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

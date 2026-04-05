@@ -5,9 +5,7 @@ set -eu
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 COMPOSE_FILE="$ROOT_DIR/docker-compose.prod.yml"
 ENV_FILE="$ROOT_DIR/.env"
-IMAGE_TAG_INPUT="${1:-${IMAGE_TAG:-main}}"
-IMAGE_NAME_INPUT="${IMAGE_NAME:-}"
-APP_PORT_INPUT="${APP_PORT:-6789}"
+IMAGE_TAG_INPUT="${1:-}"
 
 if [ ! -f "$COMPOSE_FILE" ]; then
   echo "Missing docker-compose.prod.yml"
@@ -22,6 +20,13 @@ fi
 set -a
 . "$ENV_FILE"
 set +a
+
+if [ -z "$IMAGE_TAG_INPUT" ]; then
+  IMAGE_TAG_INPUT="${IMAGE_TAG:-main}"
+fi
+
+IMAGE_NAME_INPUT="${IMAGE_NAME:-}"
+APP_PORT_INPUT="${APP_PORT:-6789}"
 
 if [ -z "$IMAGE_NAME_INPUT" ]; then
   echo "Missing IMAGE_NAME in .env"

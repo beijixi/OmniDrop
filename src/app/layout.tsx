@@ -8,7 +8,12 @@ import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "OmniDrop",
-  description: "Personal digital drawer for files, notes and quick sharing."
+  description: "Personal digital drawer for files, notes and quick sharing.",
+  icons: {
+    apple: [{ sizes: "180x180", type: "image/png", url: "/apple-icon" }],
+    icon: [{ sizes: "64x64", type: "image/png", url: "/icon" }],
+    shortcut: ["/icon"]
+  }
 };
 
 export const dynamic = "force-dynamic";

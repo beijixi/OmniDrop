@@ -80,6 +80,9 @@ INTERNAL_APP_URL=http://<your-internal-host>:3000
 
 PUBLIC_ACCESS_PASSWORD=<public-access-password>
 ACCESS_AUTH_SECRET=<random-long-secret>
+PUBLIC_ACCESS_CAPTCHA_THRESHOLD=3
+PUBLIC_ACCESS_ATTEMPT_WINDOW_MINUTES=15
+PUBLIC_ACCESS_CAPTCHA_TTL_MINUTES=5
 ```
 
 说明：
@@ -88,6 +91,7 @@ ACCESS_AUTH_SECRET=<random-long-secret>
 - `INTERNAL_APP_URL` 必须带协议头；如果不需要内部入口可留空
 - `PUBLIC_ACCESS_PASSWORD` 用于公开入口的访问密码
 - `ACCESS_AUTH_SECRET` 建议设置为与密码不同的长随机字符串
+- 默认连续输错 3 次后会要求输入本地验证码，不做 IP 封禁
 - 当前本地文件存储模式下，容器内目录固定为 `/app/storage/uploads`
 
 ## 部署命令

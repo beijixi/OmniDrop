@@ -90,6 +90,7 @@ export function isAuthExemptPath(pathname: string) {
   return (
     pathname === "/unlock" ||
     pathname.startsWith("/api/auth/unlock") ||
+    pathname.startsWith("/api/auth/captcha") ||
     pathname.startsWith("/_next/") ||
     pathname === "/favicon.ico" ||
     pathname === "/robots.txt"

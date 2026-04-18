@@ -5,6 +5,7 @@ import { getEntries } from "@/lib/entries";
 import { getServerI18n } from "@/lib/i18n-server";
 import { t } from "@/lib/i18n";
 import { resolveViewerIpv4FromHeaders } from "@/lib/request-source";
+import { isMobileUserAgent } from "@/lib/utils";
 import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -17,10 +18,12 @@ type HomePageProps = {
 };
 
 export default async function HomePage({ searchParams }: HomePageProps) {
+  const requestHeaders = headers();
   const currentQuery = searchParams?.q?.trim() || "";
   const currentType = searchParams?.type?.trim() || "ALL";
   const { locale } = getServerI18n();
-  const viewerIp = resolveViewerIpv4FromHeaders(headers());
+  const viewerIp = resolveViewerIpv4FromHeaders(requestHeaders);
+  const preferPdfInlinePreview = !isMobileUserAgent(requestHeaders.get("user-agent"));
   const entries = await getEntries({
     q: currentQuery,
     type: currentType
@@ -37,7 +40,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <div className="relative space-y-5 pb-24 sm:space-y-6 sm:pb-32">
         {entries.length > 0 ? (
           entries.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} locale={locale} viewerIp={viewerIp} />
+            <EntryCard
+              key={entry.id}
+              entry={entry}
+              locale={locale}
+              viewerIp={viewerIp}
+              preferPdfInlinePreview={preferPdfInlinePreview}
+            />
           ))
         ) : (
           <div className="panel-strong relative overflow-hidden px-6 py-14 text-center">

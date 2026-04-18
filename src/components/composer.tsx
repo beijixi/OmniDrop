@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/components/i18n-provider";
-import { cn, formatBytes, splitMessageBlocks } from "@/lib/utils";
+import { cn, formatBytes, normalizeMessageText } from "@/lib/utils";
 
 type PendingPreview = {
   id: string;
@@ -32,8 +32,8 @@ export function Composer() {
     offsetTop: 0
   });
 
-  const messageCount = splitMessageBlocks(message).length;
-  const sendCount = messageCount + files.length;
+  const normalizedMessage = normalizeMessageText(message);
+  const sendCount = (normalizedMessage ? 1 : 0) + files.length;
   const mobileTopInset = Math.max(8, viewportMetrics.offsetTop + 8);
   const mobileBottomInset = Math.max(8, viewportMetrics.keyboardInset + 8);
   const mobileSheetMaxHeight =
@@ -415,18 +415,20 @@ export function Composer() {
           </div>
         ) : null}
 
-        <div className="pointer-events-none fixed bottom-4 right-4 sm:bottom-6 sm:right-6">
-          <button
-            type="button"
-            onClick={() => setIsOpen(true)}
-            className="pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#0f172a,#0f766e_58%,#38bdf8)] text-white shadow-[0_24px_54px_rgba(15,23,42,0.28)] transition hover:-translate-y-[2px] sm:h-[4.4rem] sm:w-[4.4rem] sm:rounded-[26px]"
-            aria-label={t("composer.open")}
-          >
-            <span className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.34),rgba(255,255,255,0)_58%)]" />
-            <span className="pointer-events-none absolute -inset-1 -z-10 rounded-[26px] bg-[radial-gradient(circle,rgba(56,189,248,0.36),rgba(56,189,248,0)_70%)] blur-xl" />
-            <PlusIcon />
-          </button>
-        </div>
+        {!isOpen ? (
+          <div className="pointer-events-none fixed bottom-4 right-4 sm:bottom-6 sm:right-6">
+            <button
+              type="button"
+              onClick={() => setIsOpen(true)}
+              className="pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#0f172a,#0f766e_58%,#38bdf8)] text-white shadow-[0_24px_54px_rgba(15,23,42,0.28)] transition hover:-translate-y-[2px] sm:h-[4.4rem] sm:w-[4.4rem] sm:rounded-[26px]"
+              aria-label={t("composer.open")}
+            >
+              <span className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.34),rgba(255,255,255,0)_58%)]" />
+              <span className="pointer-events-none absolute -inset-1 -z-10 rounded-[26px] bg-[radial-gradient(circle,rgba(56,189,248,0.36),rgba(56,189,248,0)_70%)] blur-xl" />
+              <PlusIcon />
+            </button>
+          </div>
+        ) : null}
       </div>
     </>
   );

@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 
 import { EntryCard } from "@/components/entry-card";
 import { getSharedEntry } from "@/lib/entries";
 import { getServerI18n } from "@/lib/i18n-server";
 import { t } from "@/lib/i18n";
 import { getSettings } from "@/lib/settings";
+import { isMobileUserAgent } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,7 @@ type SharePageProps = {
 
 export default async function SharePage({ params }: SharePageProps) {
   const { locale } = getServerI18n();
+  const preferPdfInlinePreview = !isMobileUserAgent(headers().get("user-agent"));
   const [settings, entry] = await Promise.all([
     getSettings(),
     getSharedEntry(params.token)
@@ -41,6 +44,7 @@ export default async function SharePage({ params }: SharePageProps) {
         locale={locale}
         publicView
         shareToken={params.token}
+        preferPdfInlinePreview={preferPdfInlinePreview}
       />
     </div>
   );

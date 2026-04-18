@@ -13,6 +13,7 @@ import { cn, formatBytes, formatDateTime, isIpv4Address } from "@/lib/utils";
 type EntryCardProps = {
   entry: EntryWithRelations;
   locale: AppLocale;
+  preferPdfInlinePreview?: boolean;
   publicView?: boolean;
   shareToken?: string | null;
   viewerIp?: string | null;
@@ -21,6 +22,7 @@ type EntryCardProps = {
 export async function EntryCard({
   entry,
   locale,
+  preferPdfInlinePreview = true,
   publicView = false,
   shareToken = null,
   viewerIp = null
@@ -208,24 +210,58 @@ export async function EntryCard({
                           ) : null}
 
                           {asset.kind === "PDF" ? (
-                            <>
-                              <iframe
-                                src={`${assetPath(asset.id)}#toolbar=0&navpanes=0`}
-                                title={asset.originalName}
-                                className="h-[320px] w-full bg-slate-100 sm:h-[440px]"
-                              />
-                              <AssetFooter
-                                assetName={asset.originalName}
-                                meta={`${asset.mimeType} · ${formatBytes(asset.size)}`}
-                                action={
-                                  <DownloadIconLink
+                            preferPdfInlinePreview ? (
+                              <>
+                                <iframe
+                                  src={`${assetPath(asset.id)}#toolbar=0&navpanes=0`}
+                                  title={asset.originalName}
+                                  className="h-[320px] w-full bg-slate-100 sm:h-[440px]"
+                                />
+                                <AssetFooter
+                                  assetName={asset.originalName}
+                                  meta={`${asset.mimeType} · ${formatBytes(asset.size)}`}
+                                  action={
+                                    <DownloadIconLink
+                                      href={assetPath(asset.id)}
+                                      filename={asset.originalName}
+                                      label={t(locale, "entry.download")}
+                                    />
+                                  }
+                                />
+                              </>
+                            ) : (
+                              <div className="px-4 py-4">
+                                <div className="flex items-start gap-3">
+                                  <Link
                                     href={assetPath(asset.id)}
-                                    filename={asset.originalName}
-                                    label={t(locale, "entry.download")}
-                                  />
-                                }
-                              />
-                            </>
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="flex min-w-0 flex-1 items-start gap-3 rounded-[18px] border border-transparent transition hover:border-cyan-100 hover:bg-cyan-50/30"
+                                  >
+                                    <FileVisualBadge visual={visual} />
+                                    <div className="min-w-0 pt-0.5">
+                                      <p className="truncate text-sm font-medium text-slate-900">
+                                        {asset.originalName}
+                                      </p>
+                                      <p className="mt-1 text-xs text-slate-500">
+                                        {asset.mimeType} · {formatBytes(asset.size)}
+                                      </p>
+                                    </div>
+                                  </Link>
+                                  <div className="flex shrink-0 items-center gap-2">
+                                    <OpenIconLink
+                                      href={assetPath(asset.id)}
+                                      label={t(locale, "entry.open")}
+                                    />
+                                    <DownloadIconLink
+                                      href={assetPath(asset.id)}
+                                      filename={asset.originalName}
+                                      label={t(locale, "entry.download")}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )
                           ) : null}
 
                           {asset.kind === "FILE" ? (
@@ -517,10 +553,45 @@ function DownloadIconLink({ href, filename, label, className }: DownloadIconLink
   );
 }
 
+type OpenIconLinkProps = {
+  className?: string;
+  href: string;
+  label: string;
+};
+
+function OpenIconLink({ href, label, className }: OpenIconLinkProps) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer noopener"
+      aria-label={label}
+      title={label}
+      className={cn("entry-icon-button shrink-0", className)}
+    >
+      <OpenIcon />
+    </a>
+  );
+}
+
 function DownloadIcon() {
   return (
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path strokeLinecap="round" strokeLinejoin="round" d="M10 3.5v7.2m0 0 3-3m-3 3-3-3M4.5 13.7v1.1a1.7 1.7 0 0 0 1.7 1.7h7.6a1.7 1.7 0 0 0 1.7-1.7v-1.1" />
+    </svg>
+  );
+}
+
+function OpenIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11.5 4h4.5v4.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 11 16 4" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15.5 11.5v2.3a1.7 1.7 0 0 1-1.7 1.7H6.2a1.7 1.7 0 0 1-1.7-1.7V6.2a1.7 1.7 0 0 1 1.7-1.7h2.3"
+      />
     </svg>
   );
 }

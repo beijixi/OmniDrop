@@ -28,12 +28,18 @@ export function formatDateTime(input: Date | string, locale = "zh-CN"): string {
   }).format(value);
 }
 
-export function splitMessageBlocks(raw: string): string[] {
-  return raw
-    .replace(/\r\n/g, "\n")
-    .split(/\n{2,}/g)
-    .map((item) => item.trim())
-    .filter(Boolean);
+export function normalizeMessageText(raw: string): string | null {
+  const normalized = raw.replace(/\r\n/g, "\n").trim();
+
+  return normalized ? normalized : null;
+}
+
+export function isMobileUserAgent(userAgent: string | null | undefined): boolean {
+  if (!userAgent) {
+    return false;
+  }
+
+  return /android|iphone|ipad|ipod|mobile|blackberry|iemobile|opera mini/i.test(userAgent);
 }
 
 export function isIpv4Address(value: string | null | undefined): boolean {

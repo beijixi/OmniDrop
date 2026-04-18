@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveEntryType } from "@/lib/file-types";
 import type { SavedUpload } from "@/lib/storage";
 import { removeStoredAssets, removeStoredFiles } from "@/lib/storage";
-import { splitMessageBlocks } from "@/lib/utils";
+import { normalizeMessageText } from "@/lib/utils";
 
 const DEFAULT_ENTRY_PAGE_SIZE = 20;
 const MAX_ENTRY_PAGE_SIZE = 50;
@@ -126,12 +126,12 @@ export async function createEntriesBatch(input: {
   };
 }): Promise<EntryWithRelations[]> {
   const uploads = input.uploads || [];
-  const messageBlocks = splitMessageBlocks(input.message || "");
+  const message = normalizeMessageText(input.message || "");
   const senderName = input.sender.senderName.trim() || "current-device";
   const senderIp = input.sender.senderIp?.trim() || null;
   const senderHost = input.sender.senderHost?.trim() || null;
 
-  if (messageBlocks.length === 0 && uploads.length === 0) {
+  if (!message && uploads.length === 0) {
     throw new Error("EMPTY_ENTRY");
   }
 
@@ -139,7 +139,7 @@ export async function createEntriesBatch(input: {
     return await prisma.$transaction(async (tx) => {
       const entryIds: string[] = [];
 
-      for (const message of messageBlocks) {
+      if (message) {
         const entry = await tx.entry.create({
           data: {
             message,

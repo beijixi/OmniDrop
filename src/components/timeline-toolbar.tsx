@@ -5,22 +5,26 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 
 import { useI18n } from "@/components/i18n-provider";
+import { entryViewOptions, type EntryView } from "@/lib/entry-views";
 import { entryTypeOptions } from "@/lib/file-types";
 import { cn } from "@/lib/utils";
 
 type TimelineToolbarProps = {
   currentQuery?: string;
   currentType?: string;
+  currentView?: EntryView;
   resultCount: number;
 };
 
 export function TimelineToolbar({
   currentQuery,
   currentType,
+  currentView = "ACTIVE",
   resultCount
 }: TimelineToolbarProps) {
-  const { entryTypeLabels, t } = useI18n();
-  const hasActiveFilters = Boolean(currentQuery) || (currentType || "ALL") !== "ALL";
+  const { entryTypeLabels, entryViewLabels, t } = useI18n();
+  const hasActiveFilters =
+    Boolean(currentQuery) || (currentType || "ALL") !== "ALL" || currentView !== "ACTIVE";
   const [isOpen, setIsOpen] = useState(hasActiveFilters);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
@@ -80,6 +84,11 @@ export function TimelineToolbar({
                     {entryTypeLabels[(currentType || "ALL") as keyof typeof entryTypeLabels]}
                   </span>
                 ) : null}
+                {currentView !== "ACTIVE" ? (
+                  <span className="rounded-full border border-amber-200/80 bg-amber-50/80 px-3 py-1.5 text-amber-700">
+                    {entryViewLabels[currentView]}
+                  </span>
+                ) : null}
                 {hasActiveFilters ? (
                   <Link
                     href="/"
@@ -93,6 +102,9 @@ export function TimelineToolbar({
               <form action="/" className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 {currentType && currentType !== "ALL" ? (
                   <input type="hidden" name="type" value={currentType} />
+                ) : null}
+                {currentView !== "ACTIVE" ? (
+                  <input type="hidden" name="view" value={currentView} />
                 ) : null}
 
                 <div className="relative flex-1">
@@ -117,6 +129,31 @@ export function TimelineToolbar({
               </form>
 
               <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-1">
+                {entryViewOptions.map((view) => {
+                  const active = currentView === view;
+
+                  return (
+                    <Link
+                      key={view}
+                      href={buildHref({
+                        q: currentQuery,
+                        type: currentType,
+                        view
+                      })}
+                      className={cn(
+                        "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition",
+                        active
+                          ? "border-transparent bg-[linear-gradient(135deg,#f59e0b,#ea580c_58%,#ef4444)] text-white shadow-[0_12px_26px_rgba(245,158,11,0.22)]"
+                          : "border-white/78 bg-white/74 text-slate-600 hover:border-amber-200 hover:text-amber-700"
+                      )}
+                    >
+                      {entryViewLabels[view]}
+                    </Link>
+                  );
+                })}
+              </div>
+
+              <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-1">
                 {entryTypeOptions.map((type) => {
                   const active = (currentType || "ALL") === type;
 
@@ -125,7 +162,8 @@ export function TimelineToolbar({
                       key={type}
                       href={buildHref({
                         q: currentQuery,
-                        type
+                        type,
+                        view: currentView
                       })}
                       className={cn(
                         "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition",
@@ -147,7 +185,7 @@ export function TimelineToolbar({
   );
 }
 
-function buildHref(input: { q?: string; type?: string }): string {
+function buildHref(input: { q?: string; type?: string; view?: EntryView }): string {
   const params = new URLSearchParams();
 
   if (input.q) {
@@ -156,6 +194,10 @@ function buildHref(input: { q?: string; type?: string }): string {
 
   if (input.type && input.type !== "ALL") {
     params.set("type", input.type);
+  }
+
+  if (input.view && input.view !== "ACTIVE") {
+    params.set("view", input.view);
   }
 
   const query = params.toString();

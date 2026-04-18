@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 
 import { apiError, apiErrorFromUnknown, apiOk } from "@/lib/api-response";
 import { serializeEntry } from "@/lib/api-serializers";
-import { deleteEntry, getEntryById } from "@/lib/entries";
+import { deleteEntry, getEntryById, updateEntryState } from "@/lib/entries";
 import { getSettings } from "@/lib/settings";
 
 export const runtime = "nodejs";
@@ -53,6 +53,45 @@ export async function DELETE(_request: Request, { params }: EntryRouteProps) {
     return apiErrorFromUnknown(error, {
       code: "DELETE_ENTRY_FAILED",
       message: "删除条目失败。",
+      status: 400
+    });
+  }
+}
+
+export async function PATCH(request: Request, { params }: EntryRouteProps) {
+  try {
+    const payload = (await request.json()) as {
+      archived?: boolean;
+      favorite?: boolean;
+    };
+
+    if (typeof payload.archived !== "boolean" && typeof payload.favorite !== "boolean") {
+      return apiError({
+        code: "EMPTY_ENTRY_UPDATE",
+        message: "至少要更新一个状态字段。",
+        status: 400
+      });
+    }
+
+    const [entry, settings] = await Promise.all([
+      updateEntryState(params.id, {
+        archived: payload.archived,
+        favorite: payload.favorite
+      }),
+      getSettings()
+    ]);
+
+    revalidatePath("/");
+
+    return apiOk({
+      entry: serializeEntry(entry, {
+        shareBaseUrl: settings.shareBaseUrl
+      })
+    });
+  } catch (error) {
+    return apiErrorFromUnknown(error, {
+      code: "UPDATE_ENTRY_FAILED",
+      message: "更新条目状态失败。",
       status: 400
     });
   }

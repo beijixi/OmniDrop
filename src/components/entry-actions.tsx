@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/components/i18n-provider";
@@ -11,6 +11,8 @@ type EntryActionsProps = {
   align?: "left" | "right";
   entryId: string;
   hasActiveShare?: boolean;
+  isArchived?: boolean;
+  isFavorite?: boolean;
   inline?: boolean;
   messageText?: string | null;
 };
@@ -24,6 +26,8 @@ export function EntryActions({
   align = "left",
   entryId,
   hasActiveShare = false,
+  isArchived = false,
+  isFavorite = false,
   inline = false,
   messageText = null
 }: EntryActionsProps) {
@@ -31,11 +35,34 @@ export function EntryActions({
   const { t } = useI18n();
   const [shareLinks, setShareLinks] = useState<ShareResponse | null>(null);
   const [hasShareLink, setHasShareLink] = useState(hasActiveShare);
+  const [favorite, setFavorite] = useState(isFavorite);
+  const [archived, setArchived] = useState(isArchived);
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState("");
   const [loadingAction, setLoadingAction] = useState<
-    "share_public" | "share_internal" | "revoke" | "delete" | ""
+    "archive" | "delete" | "favorite" | "revoke" | "share_public" | "share_internal" | ""
   >("");
+
+  useEffect(() => {
+    setHasShareLink(hasActiveShare);
+
+    if (!hasActiveShare) {
+      setShareLinks(null);
+    }
+  }, [hasActiveShare]);
+
+  useEffect(() => {
+    setFavorite(isFavorite);
+  }, [isFavorite]);
+
+  useEffect(() => {
+    setArchived(isArchived);
+  }, [isArchived]);
+
+  function setTransientStatus(nextStatus: string) {
+    setStatus(nextStatus);
+    window.setTimeout(() => setStatus(""), 2400);
+  }
 
   async function ensureShareLinks() {
     const response = await fetch(`/api/v1/entries/${entryId}/share`, {
@@ -85,20 +112,19 @@ export function EntryActions({
 
       try {
         await navigator.clipboard.writeText(nextShareUrl);
-        setStatus(
+        setTransientStatus(
           target === "public"
             ? t("actions.public_share_copied")
             : t("actions.internal_share_copied")
         );
       } catch {
         window.prompt(t("actions.copy_prompt"), nextShareUrl);
-        setStatus(t("actions.share_generated"));
+        setTransientStatus(t("actions.share_generated"));
       }
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t("actions.share_failed"));
+      setTransientStatus(error instanceof Error ? error.message : t("actions.share_failed"));
     } finally {
       setLoadingAction("");
-      window.setTimeout(() => setStatus(""), 2400);
     }
   }
 
@@ -122,13 +148,12 @@ export function EntryActions({
 
       setHasShareLink(false);
       setShareLinks(null);
-      setStatus(t("actions.share_revoked"));
+      setTransientStatus(t("actions.share_revoked"));
       router.refresh();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t("actions.revoke_failed"));
+      setTransientStatus(error instanceof Error ? error.message : t("actions.revoke_failed"));
     } finally {
       setLoadingAction("");
-      window.setTimeout(() => setStatus(""), 2400);
     }
   }
 
@@ -156,14 +181,13 @@ export function EntryActions({
         throw new Error(payload.error?.message || t("actions.delete_failed"));
       }
 
-      setStatus(t("actions.deleted"));
+      setTransientStatus(t("actions.deleted"));
       router.refresh();
       setIsOpen(false);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t("actions.delete_failed"));
+      setTransientStatus(error instanceof Error ? error.message : t("actions.delete_failed"));
     } finally {
       setLoadingAction("");
-      window.setTimeout(() => setStatus(""), 2400);
     }
   }
 
@@ -176,11 +200,85 @@ export function EntryActions({
 
     try {
       await navigator.clipboard.writeText(messageText);
-      setStatus(t("actions.text_copied"));
+      setTransientStatus(t("actions.text_copied"));
     } catch {
-      setStatus(t("actions.copy_failed"));
+      setTransientStatus(t("actions.copy_failed"));
+    }
+  }
+
+  async function updateEntryState(input: {
+    archived?: boolean;
+    favorite?: boolean;
+  }) {
+    const response = await fetch(`/api/v1/entries/${entryId}`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(input)
+    });
+    const payload = (await response.json()) as {
+      data?: {
+        entry?: {
+          archivedAt?: string | null;
+          isFavorite?: boolean;
+        };
+      };
+      error?: {
+        message?: string;
+      };
+    };
+
+    if (!response.ok || !payload.data?.entry) {
+      throw new Error(
+        payload.error?.message ||
+          (typeof input.archived === "boolean"
+            ? t("actions.archive_failed")
+            : t("actions.favorite_failed"))
+      );
+    }
+
+    setFavorite(Boolean(payload.data.entry.isFavorite));
+    setArchived(Boolean(payload.data.entry.archivedAt));
+    router.refresh();
+  }
+
+  async function handleFavoriteToggle() {
+    const nextFavorite = !favorite;
+
+    setLoadingAction("favorite");
+    setStatus("");
+
+    try {
+      await updateEntryState({
+        favorite: nextFavorite
+      });
+      setTransientStatus(
+        nextFavorite ? t("actions.favorite_added") : t("actions.favorite_removed")
+      );
+    } catch (error) {
+      setTransientStatus(error instanceof Error ? error.message : t("actions.favorite_failed"));
     } finally {
-      window.setTimeout(() => setStatus(""), 2400);
+      setLoadingAction("");
+    }
+  }
+
+  async function handleArchiveToggle() {
+    const nextArchived = !archived;
+
+    setLoadingAction("archive");
+    setStatus("");
+
+    try {
+      await updateEntryState({
+        archived: nextArchived
+      });
+      setTransientStatus(nextArchived ? t("actions.archived") : t("actions.unarchived"));
+      setIsOpen(false);
+    } catch (error) {
+      setTransientStatus(error instanceof Error ? error.message : t("actions.archive_failed"));
+    } finally {
+      setLoadingAction("");
     }
   }
 
@@ -212,6 +310,21 @@ export function EntryActions({
             )}
           >
             <div className="space-y-1">
+              <ActionMenuButton
+                icon={<StarIcon active={favorite} />}
+                label={favorite ? t("actions.unfavorite") : t("actions.favorite")}
+                loading={loadingAction === "favorite"}
+                onClick={() => void handleFavoriteToggle()}
+              />
+              <ActionMenuButton
+                icon={archived ? <ArchiveRestoreIcon /> : <ArchiveIcon />}
+                label={archived ? t("actions.unarchive") : t("actions.archive")}
+                loading={loadingAction === "archive"}
+                onClick={() => void handleArchiveToggle()}
+              />
+
+              <div className="my-2 h-px bg-[linear-gradient(90deg,rgba(226,232,240,0),rgba(203,213,225,0.9),rgba(226,232,240,0))]" />
+
               {messageText ? (
                 <ActionMenuButton
                   icon={<CopyIcon />}
@@ -326,6 +439,24 @@ function CopyIcon() {
   );
 }
 
+function StarIcon({ active = false }: { active?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="h-4 w-4"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.6"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m10 2.9 2.1 4.3 4.8.7-3.4 3.3.8 4.7-4.3-2.3-4.3 2.3.8-4.7L3.1 7.9l4.8-.7L10 2.9Z"
+      />
+    </svg>
+  );
+}
+
 function GlobeIcon() {
   return (
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -348,6 +479,26 @@ function UndoIcon() {
   return (
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path strokeLinecap="round" strokeLinejoin="round" d="M5.1 6.9V3.8L2.6 6.3l2.5 2.5V6.9H11a4.2 4.2 0 0 1 0 8.4H7.4" />
+    </svg>
+  );
+}
+
+function ArchiveIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.4 5.4h13.2v3.2H3.4z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.6 8.6h10.8v6.2a1.2 1.2 0 0 1-1.2 1.2H5.8a1.2 1.2 0 0 1-1.2-1.2V8.6Z" />
+      <path strokeLinecap="round" d="M7.4 11h5.2" />
+    </svg>
+  );
+}
+
+function ArchiveRestoreIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.4 5.4h13.2v3.2H3.4z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.6 8.6h10.8v6.2a1.2 1.2 0 0 1-1.2 1.2H5.8a1.2 1.2 0 0 1-1.2-1.2V8.6Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m10 12.9 2.3-2.3M10 12.9l-2.3-2.3M10 12.9V9.3" />
     </svg>
   );
 }

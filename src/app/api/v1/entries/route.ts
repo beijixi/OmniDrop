@@ -13,19 +13,21 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const limitValue = searchParams.get("limit");
-    const limit = limitValue ? Number.parseInt(limitValue, 10) : undefined;
-    const query = searchParams.get("q") || "";
-    const type = searchParams.get("type") || "";
-    const cursor = searchParams.get("cursor") || "";
+      const limitValue = searchParams.get("limit");
+      const limit = limitValue ? Number.parseInt(limitValue, 10) : undefined;
+      const query = searchParams.get("q") || "";
+      const type = searchParams.get("type") || "";
+      const view = searchParams.get("view") || "";
+      const cursor = searchParams.get("cursor") || "";
 
     const [page, settings] = await Promise.all([
-      listEntriesPage({
-        cursor,
-        limit,
-        q: query,
-        type
-      }),
+        listEntriesPage({
+          cursor,
+          limit,
+          q: query,
+          type,
+          view
+        }),
       getSettings()
     ]);
 

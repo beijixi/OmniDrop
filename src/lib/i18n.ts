@@ -1,5 +1,7 @@
 import type { EntryType } from "@prisma/client";
 
+import type { EntryView } from "@/lib/entry-views";
+
 export const localeCookieName = "omnidrop_locale";
 
 export const supportedLocales = ["zh-CN", "en", "ja", "fr", "de", "es"] as const;
@@ -46,6 +48,8 @@ export type MessageKey =
   | "composer.cta_title"
   | "composer.cta_description"
   | "entry.local_source"
+  | "entry.favorite"
+  | "entry.archived"
   | "entry.share_revoked"
   | "entry.open"
   | "entry.download"
@@ -75,6 +79,16 @@ export type MessageKey =
   | "actions.copy_internal_share"
   | "actions.text_copied"
   | "actions.image_copied"
+  | "actions.favorite"
+  | "actions.unfavorite"
+  | "actions.archive"
+  | "actions.unarchive"
+  | "actions.favorite_added"
+  | "actions.favorite_removed"
+  | "actions.favorite_failed"
+  | "actions.archived"
+  | "actions.unarchived"
+  | "actions.archive_failed"
   | "actions.preferred_share_copied"
   | "actions.public_share_copied"
   | "actions.internal_share_copied"
@@ -137,6 +151,8 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "composer.cta_title": "发消息、传文件、贴截图",
     "composer.cta_description": "点击展开输入器，把新的内容丢进时间流",
     "entry.local_source": "本机来源",
+    "entry.favorite": "已收藏",
+    "entry.archived": "已归档",
     "entry.share_revoked": "分享已撤销",
     "entry.open": "打开",
     "entry.download": "下载",
@@ -166,6 +182,16 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.copy_internal_share": "内网链接",
     "actions.text_copied": "文本已复制",
     "actions.image_copied": "图片已复制",
+    "actions.favorite": "加入收藏",
+    "actions.unfavorite": "取消收藏",
+    "actions.archive": "归档",
+    "actions.unarchive": "取消归档",
+    "actions.favorite_added": "已加入收藏",
+    "actions.favorite_removed": "已取消收藏",
+    "actions.favorite_failed": "收藏操作失败",
+    "actions.archived": "已归档",
+    "actions.unarchived": "已取消归档",
+    "actions.archive_failed": "归档操作失败",
     "actions.preferred_share_copied": "推荐链接已复制",
     "actions.public_share_copied": "公网链接已复制",
     "actions.internal_share_copied": "内网链接已复制",
@@ -225,6 +251,8 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "composer.cta_title": "Send notes, files, and screenshots",
     "composer.cta_description": "Open the floating composer and drop new content into the stream",
     "entry.local_source": "Local device",
+    "entry.favorite": "Favorite",
+    "entry.archived": "Archived",
     "entry.share_revoked": "Share revoked",
     "entry.open": "Open",
     "entry.download": "Download",
@@ -254,6 +282,16 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.copy_internal_share": "Internal link",
     "actions.text_copied": "Text copied",
     "actions.image_copied": "Image copied",
+    "actions.favorite": "Add to favorites",
+    "actions.unfavorite": "Remove favorite",
+    "actions.archive": "Archive",
+    "actions.unarchive": "Unarchive",
+    "actions.favorite_added": "Added to favorites",
+    "actions.favorite_removed": "Removed from favorites",
+    "actions.favorite_failed": "Favorite update failed",
+    "actions.archived": "Archived",
+    "actions.unarchived": "Moved back to active",
+    "actions.archive_failed": "Archive update failed",
     "actions.preferred_share_copied": "Recommended link copied",
     "actions.public_share_copied": "Public link copied",
     "actions.internal_share_copied": "Internal link copied",
@@ -313,6 +351,8 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "composer.cta_title": "メッセージ、ファイル、スクリーンショットを送信",
     "composer.cta_description": "入力欄を開いて新しい内容をタイムラインに追加します",
     "entry.local_source": "ローカル端末",
+    "entry.favorite": "お気に入り",
+    "entry.archived": "アーカイブ済み",
     "entry.share_revoked": "共有は無効化されました",
     "entry.open": "開く",
     "entry.download": "ダウンロード",
@@ -342,6 +382,16 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.copy_internal_share": "内部リンク",
     "actions.text_copied": "テキストをコピーしました",
     "actions.image_copied": "画像をコピーしました",
+    "actions.favorite": "お気に入りに追加",
+    "actions.unfavorite": "お気に入りから外す",
+    "actions.archive": "アーカイブ",
+    "actions.unarchive": "アーカイブを解除",
+    "actions.favorite_added": "お気に入りに追加しました",
+    "actions.favorite_removed": "お気に入りから外しました",
+    "actions.favorite_failed": "お気に入りの更新に失敗しました",
+    "actions.archived": "アーカイブしました",
+    "actions.unarchived": "アクティブに戻しました",
+    "actions.archive_failed": "アーカイブの更新に失敗しました",
     "actions.preferred_share_copied": "おすすめリンクをコピーしました",
     "actions.public_share_copied": "公開リンクをコピーしました",
     "actions.internal_share_copied": "内部リンクをコピーしました",
@@ -401,6 +451,8 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "composer.cta_title": "Envoyer messages, fichiers et captures",
     "composer.cta_description": "Ouvrez le composeur flottant pour ajouter du nouveau contenu au flux",
     "entry.local_source": "Appareil local",
+    "entry.favorite": "Favori",
+    "entry.archived": "Archive",
     "entry.share_revoked": "Partage revoque",
     "entry.open": "Ouvrir",
     "entry.download": "Telecharger",
@@ -430,6 +482,16 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.copy_internal_share": "Lien interne",
     "actions.text_copied": "Texte copie",
     "actions.image_copied": "Image copiee",
+    "actions.favorite": "Ajouter aux favoris",
+    "actions.unfavorite": "Retirer des favoris",
+    "actions.archive": "Archiver",
+    "actions.unarchive": "Retirer de l'archive",
+    "actions.favorite_added": "Ajoute aux favoris",
+    "actions.favorite_removed": "Retire des favoris",
+    "actions.favorite_failed": "Echec de la mise a jour des favoris",
+    "actions.archived": "Archive",
+    "actions.unarchived": "Remis dans le flux actif",
+    "actions.archive_failed": "Echec de la mise a jour de l'archive",
     "actions.preferred_share_copied": "Lien recommande copie",
     "actions.public_share_copied": "Lien public copie",
     "actions.internal_share_copied": "Lien interne copie",
@@ -489,6 +551,8 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "composer.cta_title": "Nachrichten, Dateien und Screenshots senden",
     "composer.cta_description": "Oeffne den schwebenden Composer und wirf neue Inhalte in den Stream",
     "entry.local_source": "Lokales Geraet",
+    "entry.favorite": "Favorit",
+    "entry.archived": "Archiviert",
     "entry.share_revoked": "Freigabe widerrufen",
     "entry.open": "Oeffnen",
     "entry.download": "Herunterladen",
@@ -518,6 +582,16 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.copy_internal_share": "Interner Link",
     "actions.text_copied": "Text kopiert",
     "actions.image_copied": "Bild kopiert",
+    "actions.favorite": "Zu Favoriten",
+    "actions.unfavorite": "Favorit entfernen",
+    "actions.archive": "Archivieren",
+    "actions.unarchive": "Archiv aufheben",
+    "actions.favorite_added": "Zu Favoriten hinzugefuegt",
+    "actions.favorite_removed": "Favorit entfernt",
+    "actions.favorite_failed": "Favoriten konnten nicht aktualisiert werden",
+    "actions.archived": "Archiviert",
+    "actions.unarchived": "Wieder aktiv",
+    "actions.archive_failed": "Archivstatus konnte nicht aktualisiert werden",
     "actions.preferred_share_copied": "Empfohlener Link kopiert",
     "actions.public_share_copied": "Oeffentlicher Link kopiert",
     "actions.internal_share_copied": "Interner Link kopiert",
@@ -577,6 +651,8 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "composer.cta_title": "Enviar notas, archivos y capturas",
     "composer.cta_description": "Abre el compositor flotante y lanza nuevo contenido al flujo",
     "entry.local_source": "Dispositivo local",
+    "entry.favorite": "Favorito",
+    "entry.archived": "Archivado",
     "entry.share_revoked": "Compartido revocado",
     "entry.open": "Abrir",
     "entry.download": "Descargar",
@@ -606,6 +682,16 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.copy_internal_share": "Enlace interno",
     "actions.text_copied": "Texto copiado",
     "actions.image_copied": "Imagen copiada",
+    "actions.favorite": "Anadir a favoritos",
+    "actions.unfavorite": "Quitar de favoritos",
+    "actions.archive": "Archivar",
+    "actions.unarchive": "Quitar del archivo",
+    "actions.favorite_added": "Anadido a favoritos",
+    "actions.favorite_removed": "Quitado de favoritos",
+    "actions.favorite_failed": "No se pudo actualizar favoritos",
+    "actions.archived": "Archivado",
+    "actions.unarchived": "Devuelto al flujo activo",
+    "actions.archive_failed": "No se pudo actualizar el archivo",
     "actions.preferred_share_copied": "Enlace recomendado copiado",
     "actions.public_share_copied": "Enlace publico copiado",
     "actions.internal_share_copied": "Enlace interno copiado",
@@ -693,6 +779,45 @@ const entryTypeLabelsByLocale: Record<AppLocale, Record<EntryType | "ALL", strin
   }
 };
 
+const entryViewLabelsByLocale: Record<AppLocale, Record<EntryView, string>> = {
+  "zh-CN": {
+    ACTIVE: "进行中",
+    FAVORITES: "收藏",
+    ARCHIVED: "已归档",
+    ALL: "全部"
+  },
+  en: {
+    ACTIVE: "Active",
+    FAVORITES: "Favorites",
+    ARCHIVED: "Archived",
+    ALL: "All"
+  },
+  ja: {
+    ACTIVE: "進行中",
+    FAVORITES: "お気に入り",
+    ARCHIVED: "アーカイブ",
+    ALL: "すべて"
+  },
+  fr: {
+    ACTIVE: "Actifs",
+    FAVORITES: "Favoris",
+    ARCHIVED: "Archives",
+    ALL: "Tout"
+  },
+  de: {
+    ACTIVE: "Aktiv",
+    FAVORITES: "Favoriten",
+    ARCHIVED: "Archiviert",
+    ALL: "Alle"
+  },
+  es: {
+    ACTIVE: "Activos",
+    FAVORITES: "Favoritos",
+    ARCHIVED: "Archivados",
+    ALL: "Todo"
+  }
+};
+
 export function resolveLocale(input?: string | null): AppLocale {
   if (!input) {
     return "zh-CN";
@@ -762,6 +887,10 @@ export function getMessages(locale: AppLocale): Messages {
 
 export function getEntryTypeLabels(locale: AppLocale): Record<EntryType | "ALL", string> {
   return entryTypeLabelsByLocale[locale] || entryTypeLabelsByLocale["zh-CN"];
+}
+
+export function getEntryViewLabels(locale: AppLocale): Record<EntryView, string> {
+  return entryViewLabelsByLocale[locale] || entryViewLabelsByLocale["zh-CN"];
 }
 
 export function t(

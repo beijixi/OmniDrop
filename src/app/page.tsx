@@ -1,7 +1,9 @@
 import { Composer } from "@/components/composer";
 import { EntryCard } from "@/components/entry-card";
 import { TimelineToolbar } from "@/components/timeline-toolbar";
+import { normalizeEntryView } from "@/lib/entry-views";
 import { getEntries } from "@/lib/entries";
+import { normalizeEntryTypeOption } from "@/lib/file-types";
 import { getServerI18n } from "@/lib/i18n-server";
 import { t } from "@/lib/i18n";
 import { resolveViewerIpv4FromHeaders } from "@/lib/request-source";
@@ -14,19 +16,22 @@ type HomePageProps = {
   searchParams?: {
     q?: string;
     type?: string;
+    view?: string;
   };
 };
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const requestHeaders = headers();
   const currentQuery = searchParams?.q?.trim() || "";
-  const currentType = searchParams?.type?.trim() || "ALL";
+  const currentType = normalizeEntryTypeOption(searchParams?.type);
+  const currentView = normalizeEntryView(searchParams?.view);
   const { locale } = getServerI18n();
   const viewerIp = resolveViewerIpv4FromHeaders(requestHeaders);
   const preferPdfInlinePreview = !isMobileUserAgent(requestHeaders.get("user-agent"));
   const entries = await getEntries({
     q: currentQuery,
-    type: currentType
+    type: currentType,
+    view: currentView
   });
 
   return (
@@ -34,6 +39,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <TimelineToolbar
         currentQuery={currentQuery}
         currentType={currentType}
+        currentView={currentView}
         resultCount={entries.length}
       />
 

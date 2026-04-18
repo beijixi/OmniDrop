@@ -85,6 +85,8 @@ export async function EntryCard({
                   align={align}
                   entryId={entry.id}
                   hasActiveShare={Boolean(entry.shareLink && !entry.shareLink.revokedAt)}
+                  isArchived={Boolean(entry.archivedAt)}
+                  isFavorite={entry.isFavorite}
                   messageText={entry.message}
                 />
               ) : null}
@@ -97,6 +99,8 @@ export async function EntryCard({
                   )}
                 >
                   <span className="font-semibold text-slate-700">{displaySenderName}</span>
+                  {entry.isFavorite ? <EntryStateBadge label={t(locale, "entry.favorite")} tone="amber" /> : null}
+                  {entry.archivedAt ? <EntryStateBadge label={t(locale, "entry.archived")} tone="slate" /> : null}
                   <span>{formatDateTime(entry.createdAt, locale)}</span>
                 </div>
                 <div className="mt-0.5 truncate text-[11px] text-slate-400 sm:text-xs">
@@ -486,6 +490,27 @@ type AssetFooterProps = {
 type FileVisualBadgeProps = {
   visual: ReturnType<typeof getFileVisual>;
 };
+
+function EntryStateBadge({
+  label,
+  tone
+}: {
+  label: string;
+  tone: "amber" | "slate";
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.04em]",
+        tone === "amber"
+          ? "border-amber-200/80 bg-amber-50/90 text-amber-700"
+          : "border-slate-200/80 bg-white/85 text-slate-500"
+      )}
+    >
+      {label}
+    </span>
+  );
+}
 
 function FileVisualBadge({ visual }: FileVisualBadgeProps) {
   const toneClassName =

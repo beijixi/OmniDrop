@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   getMessages,
   getEntryTypeLabels,
+  getEntryViewLabels,
   interpolate,
   localeCookieName,
   localeOptions,
@@ -15,6 +16,7 @@ import {
 
 type I18nContextValue = {
   entryTypeLabels: ReturnType<typeof getEntryTypeLabels>;
+  entryViewLabels: ReturnType<typeof getEntryViewLabels>;
   locale: AppLocale;
   localeOptions: typeof localeOptions;
   setLocale: (locale: AppLocale) => void;
@@ -32,6 +34,7 @@ export function I18nProvider({ children, locale }: I18nProviderProps) {
   const router = useRouter();
   const messages = getMessages(locale);
   const entryTypeLabels = getEntryTypeLabels(locale);
+  const entryViewLabels = getEntryViewLabels(locale);
 
   function setLocale(nextLocale: AppLocale) {
     document.cookie = `${localeCookieName}=${nextLocale}; path=/; max-age=31536000; samesite=lax`;
@@ -46,6 +49,7 @@ export function I18nProvider({ children, locale }: I18nProviderProps) {
     <I18nContext.Provider
       value={{
         entryTypeLabels,
+        entryViewLabels,
         locale,
         localeOptions,
         setLocale,

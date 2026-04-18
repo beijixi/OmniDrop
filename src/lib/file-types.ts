@@ -75,6 +75,14 @@ export function getEntryTypeLabels(locale: AppLocale) {
   return getLocalizedEntryTypeLabels(locale);
 }
 
+export function isEntryTypeOption(value?: string | null): value is EntryType | "ALL" {
+  return !!value && entryTypeOptions.includes(value as EntryType | "ALL");
+}
+
+export function normalizeEntryTypeOption(value?: string | null): EntryType | "ALL" {
+  return isEntryTypeOption(value) ? value : "ALL";
+}
+
 export function detectAssetKind(mimeType: string, fileName: string): AssetKind {
   const normalizedMime = mimeType.toLowerCase();
   const extension = getFileExtension(fileName);

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { EntryType, Prisma } from "@prisma/client";
 
+import { normalizeEntryView } from "@/lib/entry-views";
 import { prisma } from "@/lib/prisma";
 import { resolveEntryType } from "@/lib/file-types";
 import type { SavedUpload } from "@/lib/storage";
@@ -27,6 +28,7 @@ export type EntryWithRelations = Prisma.EntryGetPayload<{
 export type EntryFilters = {
   q?: string;
   type?: string;
+  view?: string;
 };
 
 export type EntryPageFilters = EntryFilters & {
@@ -242,6 +244,50 @@ export async function createShareLink(entryId: string) {
   });
 }
 
+export async function updateEntryState(
+  entryId: string,
+  input: {
+    archived?: boolean;
+    favorite?: boolean;
+  }
+) {
+  const existing = await prisma.entry.findUnique({
+    where: {
+      id: entryId
+    },
+    select: {
+      archivedAt: true,
+      id: true
+    }
+  });
+
+  if (!existing) {
+    throw new Error("ENTRY_NOT_FOUND");
+  }
+
+  const data: Prisma.EntryUpdateInput = {};
+
+  if (typeof input.favorite === "boolean") {
+    data.isFavorite = input.favorite;
+  }
+
+  if (typeof input.archived === "boolean") {
+    data.archivedAt = input.archived ? existing.archivedAt || new Date() : null;
+  }
+
+  if (Object.keys(data).length === 0) {
+    throw new Error("EMPTY_UPDATE");
+  }
+
+  return prisma.entry.update({
+    where: {
+      id: entryId
+    },
+    data,
+    include: entryInclude
+  });
+}
+
 export async function revokeShareLink(entryId: string) {
   const existing = await prisma.shareLink.findUnique({
     where: {
@@ -310,6 +356,7 @@ export async function getSharedEntry(token: string): Promise<EntryWithRelations 
 function buildEntryWhereParts(filters: EntryFilters): Prisma.EntryWhereInput[] {
   const query = filters.q?.trim();
   const type = isEntryType(filters.type) ? filters.type : undefined;
+  const view = normalizeEntryView(filters.view);
   const whereParts: Prisma.EntryWhereInput[] = [];
 
   if (query) {
@@ -365,6 +412,27 @@ function buildEntryWhereParts(filters: EntryFilters): Prisma.EntryWhereInput[] {
 
   if (type) {
     whereParts.push({ type });
+  }
+
+  if (view === "ACTIVE") {
+    whereParts.push({
+      archivedAt: null
+    });
+  }
+
+  if (view === "FAVORITES") {
+    whereParts.push({
+      archivedAt: null,
+      isFavorite: true
+    });
+  }
+
+  if (view === "ARCHIVED") {
+    whereParts.push({
+      archivedAt: {
+        not: null
+      }
+    });
   }
 
   return whereParts;

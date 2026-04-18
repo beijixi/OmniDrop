@@ -34,6 +34,8 @@ export function serializeEntry(
     id: entry.id,
     type: entry.type,
     message: entry.message,
+    isFavorite: entry.isFavorite,
+    archivedAt: entry.archivedAt?.toISOString() || null,
     createdAt: entry.createdAt.toISOString(),
     updatedAt: entry.updatedAt.toISOString(),
     sender: {

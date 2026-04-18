@@ -5,6 +5,14 @@ FROM node:22-bookworm-slim AS base
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    poppler-utils \
+    tesseract-ocr \
+    tesseract-ocr-chi-sim \
+    tesseract-ocr-eng \
+  && rm -rf /var/lib/apt/lists/*
+
 FROM base AS deps
 
 COPY package.json package-lock.json ./

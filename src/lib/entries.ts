@@ -324,10 +324,20 @@ function buildEntryWhereParts(filters: EntryFilters): Prisma.EntryWhereInput[] {
         {
           assets: {
             some: {
-              originalName: {
-                contains: query,
-                mode: "insensitive"
-              }
+              OR: [
+                {
+                  originalName: {
+                    contains: query,
+                    mode: "insensitive"
+                  }
+                },
+                {
+                  searchText: {
+                    contains: query,
+                    mode: "insensitive"
+                  }
+                }
+              ]
             }
           }
         },

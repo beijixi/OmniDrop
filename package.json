@@ -1,6 +1,6 @@
 {
   "name": "omnidrop",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "guard:public-files": "node scripts/check-public-files.mjs",
+    "backfill:search-text": "node --import tsx ./scripts/backfill-asset-search-text.ts",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push"
   },
@@ -17,6 +18,7 @@
     "mammoth": "^1.12.0",
     "marked": "^17.0.6",
     "next": "^14.0.0",
+    "pdfjs-dist": "^5.6.205",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "xlsx": "^0.18.5"
@@ -29,6 +31,7 @@
     "postcss": "^8.0.0",
     "prisma": "^6.0.0",
     "tailwindcss": "^3.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.0.0"
   }
 }

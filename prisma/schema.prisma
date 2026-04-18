@@ -58,6 +58,8 @@ model Asset {
   relativePath  String
   mimeType      String
   size          Int
+  searchText    String?   @db.Text
+  searchTextIndexedAt DateTime?
   createdAt     DateTime  @default(now())
 
   @@index([entryId, createdAt])

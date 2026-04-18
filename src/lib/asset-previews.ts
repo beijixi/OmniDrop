@@ -1,19 +1,9 @@
-import { readFile } from "node:fs/promises";
-import { Readable } from "node:stream";
-
 import mammoth from "mammoth";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
 import type { Asset, StorageDriver } from "@prisma/client";
 import { marked } from "marked";
 import * as XLSX from "xlsx";
 
-import {
-  buildWebDavFileUrl,
-  getLocalStoredFilePath,
-  getS3Bucket,
-  getS3Client,
-  getWebDavAuthHeaders
-} from "@/lib/storage";
+import { readAssetBuffer } from "@/lib/asset-content";
 import {
   getFileExtension,
   isMarkdownFile,
@@ -178,90 +168,4 @@ function escapeHtml(input: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
-}
-
-async function readAssetBuffer(asset: AssetPreviewSource): Promise<Buffer> {
-  switch (asset.storageDriver) {
-    case "S3":
-      return readS3Asset(asset.relativePath);
-    case "WEBDAV":
-      return readWebDavAsset(asset.relativePath);
-    default:
-      return readFile(getLocalStoredFilePath(asset.relativePath));
-  }
-}
-
-async function readS3Asset(relativePath: string) {
-  const result = await getS3Client().send(
-    new GetObjectCommand({
-      Bucket: getS3Bucket(),
-      Key: relativePath
-    })
-  );
-
-  if (!result.Body) {
-    throw new Error("EMPTY_S3_BODY");
-  }
-
-  return streamToBuffer(result.Body);
-}
-
-async function readWebDavAsset(relativePath: string) {
-  const response = await fetch(buildWebDavFileUrl(relativePath), {
-    headers: getWebDavAuthHeaders()
-  });
-
-  if (!response.ok) {
-    throw new Error(`WEBDAV_READ_FAILED_${response.status}`);
-  }
-
-  return Buffer.from(await response.arrayBuffer());
-}
-
-async function streamToBuffer(body: unknown): Promise<Buffer> {
-  if (body && typeof body === "object" && "transformToByteArray" in body) {
-    const bytes = await (body as { transformToByteArray: () => Promise<Uint8Array> }).transformToByteArray();
-    return Buffer.from(bytes);
-  }
-
-  if (body && typeof body === "object" && "transformToWebStream" in body) {
-    return webStreamToBuffer(
-      (body as { transformToWebStream: () => ReadableStream<Uint8Array> }).transformToWebStream()
-    );
-  }
-
-  if (body instanceof Readable) {
-    const chunks: Buffer[] = [];
-
-    for await (const chunk of body) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    }
-
-    return Buffer.concat(chunks);
-  }
-
-  if (body && typeof body === "object" && "getReader" in body) {
-    return webStreamToBuffer(body as ReadableStream<Uint8Array>);
-  }
-
-  throw new Error("UNSUPPORTED_STREAM_BODY");
-}
-
-async function webStreamToBuffer(stream: ReadableStream<Uint8Array>) {
-  const reader = stream.getReader();
-  const chunks: Uint8Array[] = [];
-
-  while (true) {
-    const { done, value } = await reader.read();
-
-    if (done) {
-      break;
-    }
-
-    if (value) {
-      chunks.push(value);
-    }
-  }
-
-  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
 }

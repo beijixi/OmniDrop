@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 
 import { apiError, apiErrorFromUnknown, apiOk } from "@/lib/api-response";
 import { serializeEntry } from "@/lib/api-serializers";
+import { indexEntryAssetsSearchText } from "@/lib/asset-search-index";
 import { createEntriesBatch, listEntriesPage } from "@/lib/entries";
 import { resolveSenderFromRequest } from "@/lib/request-source";
 import { getSettings } from "@/lib/settings";
@@ -84,14 +85,19 @@ export async function POST(request: Request) {
       sender.senderName = senderNameOverride.trim();
     }
 
-    const [entries, settings] = await Promise.all([
-      createEntriesBatch({
-        message,
-        sender,
-        uploads
-      }),
-      getSettings()
-    ]);
+    const entries = await createEntriesBatch({
+      message,
+      sender,
+      uploads
+    });
+
+    try {
+      await indexEntryAssetsSearchText(entries);
+    } catch (error) {
+      console.error("Failed to index uploaded asset text", error);
+    }
+
+    const settings = await getSettings();
 
     revalidatePath("/");
 

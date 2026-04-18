@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 
+import { indexEntryAssetsSearchText } from "@/lib/asset-search-index";
 import { createEntriesBatch } from "@/lib/entries";
 import { resolveSenderFromRequest } from "@/lib/request-source";
 import { saveIncomingFiles } from "@/lib/storage";
@@ -22,6 +23,12 @@ export async function POST(request: Request) {
       sender,
       uploads
     });
+
+    try {
+      await indexEntryAssetsSearchText(entries);
+    } catch (indexError) {
+      console.error("Failed to index uploaded asset text", indexError);
+    }
 
     revalidatePath("/");
 

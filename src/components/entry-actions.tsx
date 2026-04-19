@@ -9,10 +9,12 @@ import { cn } from "@/lib/utils";
 
 type EntryActionsProps = {
   align?: "left" | "right";
+  duplicateCount?: number;
   entryId: string;
   hasActiveShare?: boolean;
   isArchived?: boolean;
   isFavorite?: boolean;
+  isPinned?: boolean;
   inline?: boolean;
   messageText?: string | null;
 };
@@ -24,10 +26,12 @@ type ShareResponse = {
 
 export function EntryActions({
   align = "left",
+  duplicateCount = 0,
   entryId,
   hasActiveShare = false,
   isArchived = false,
   isFavorite = false,
+  isPinned = false,
   inline = false,
   messageText = null
 }: EntryActionsProps) {
@@ -37,10 +41,19 @@ export function EntryActions({
   const [hasShareLink, setHasShareLink] = useState(hasActiveShare);
   const [favorite, setFavorite] = useState(isFavorite);
   const [archived, setArchived] = useState(isArchived);
+  const [pinned, setPinned] = useState(isPinned);
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState("");
   const [loadingAction, setLoadingAction] = useState<
-    "archive" | "delete" | "favorite" | "revoke" | "share_public" | "share_internal" | ""
+    | "archive"
+    | "cleanup_duplicates"
+    | "delete"
+    | "favorite"
+    | "pin"
+    | "revoke"
+    | "share_public"
+    | "share_internal"
+    | ""
   >("");
 
   useEffect(() => {
@@ -58,6 +71,10 @@ export function EntryActions({
   useEffect(() => {
     setArchived(isArchived);
   }, [isArchived]);
+
+  useEffect(() => {
+    setPinned(isPinned);
+  }, [isPinned]);
 
   function setTransientStatus(nextStatus: string) {
     setStatus(nextStatus);
@@ -209,6 +226,7 @@ export function EntryActions({
   async function updateEntryState(input: {
     archived?: boolean;
     favorite?: boolean;
+    pinned?: boolean;
   }) {
     const response = await fetch(`/api/v1/entries/${entryId}`, {
       method: "PATCH",
@@ -222,6 +240,7 @@ export function EntryActions({
         entry?: {
           archivedAt?: string | null;
           isFavorite?: boolean;
+          pinnedAt?: string | null;
         };
       };
       error?: {
@@ -234,12 +253,15 @@ export function EntryActions({
         payload.error?.message ||
           (typeof input.archived === "boolean"
             ? t("actions.archive_failed")
+            : typeof input.pinned === "boolean"
+              ? t("actions.pin_failed")
             : t("actions.favorite_failed"))
       );
     }
 
     setFavorite(Boolean(payload.data.entry.isFavorite));
     setArchived(Boolean(payload.data.entry.archivedAt));
+    setPinned(Boolean(payload.data.entry.pinnedAt));
     router.refresh();
   }
 
@@ -282,6 +304,73 @@ export function EntryActions({
     }
   }
 
+  async function handlePinToggle() {
+    const nextPinned = !pinned;
+
+    setLoadingAction("pin");
+    setStatus("");
+
+    try {
+      await updateEntryState({
+        pinned: nextPinned
+      });
+      setTransientStatus(nextPinned ? t("actions.pinned") : t("actions.unpinned"));
+      setIsOpen(false);
+    } catch (error) {
+      setTransientStatus(error instanceof Error ? error.message : t("actions.pin_failed"));
+    } finally {
+      setLoadingAction("");
+    }
+  }
+
+  async function handleCleanupDuplicates() {
+    if (!window.confirm(t("actions.confirm_cleanup_duplicates"))) {
+      return;
+    }
+
+    setLoadingAction("cleanup_duplicates");
+    setStatus("");
+
+    try {
+      const response = await fetch(`/api/v1/entries/${entryId}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "cleanup_duplicates"
+        })
+      });
+      const payload = (await response.json()) as {
+        data?: {
+          deletedCount?: number;
+        };
+        error?: {
+          message?: string;
+        };
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error?.message || t("actions.cleanup_duplicates_failed"));
+      }
+
+      const deletedCount = payload.data?.deletedCount || 0;
+      setTransientStatus(
+        deletedCount > 0
+          ? t("actions.cleanup_duplicates_done", { count: deletedCount })
+          : t("actions.cleanup_duplicates_empty")
+      );
+      router.refresh();
+      setIsOpen(false);
+    } catch (error) {
+      setTransientStatus(
+        error instanceof Error ? error.message : t("actions.cleanup_duplicates_failed")
+      );
+    } finally {
+      setLoadingAction("");
+    }
+  }
+
   return (
     <div
       className={cn(
@@ -311,6 +400,12 @@ export function EntryActions({
           >
             <div className="space-y-1">
               <ActionMenuButton
+                icon={<PinIcon active={pinned} />}
+                label={pinned ? t("actions.unpin") : t("actions.pin")}
+                loading={loadingAction === "pin"}
+                onClick={() => void handlePinToggle()}
+              />
+              <ActionMenuButton
                 icon={<StarIcon active={favorite} />}
                 label={favorite ? t("actions.unfavorite") : t("actions.favorite")}
                 loading={loadingAction === "favorite"}
@@ -330,6 +425,15 @@ export function EntryActions({
                   icon={<CopyIcon />}
                   label={t("actions.copy_text")}
                   onClick={() => void handleCopyText()}
+                />
+              ) : null}
+
+              {duplicateCount > 1 ? (
+                <ActionMenuButton
+                  icon={<SparklesBroomIcon />}
+                  label={t("actions.cleanup_duplicates")}
+                  loading={loadingAction === "cleanup_duplicates"}
+                  onClick={() => void handleCleanupDuplicates()}
                 />
               ) : null}
 
@@ -457,6 +561,24 @@ function StarIcon({ active = false }: { active?: boolean }) {
   );
 }
 
+function PinIcon({ active = false }: { active?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="h-4 w-4"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.6"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m12.2 3.4 4.4 4.4-2.2 1.2-.8 4.4-1.7-1.7-3.8 3.8-.9-.9 3.8-3.8-1.7-1.7 4.4-.8 1.2-2.2-4.4-4.4"
+      />
+    </svg>
+  );
+}
+
 function GlobeIcon() {
   return (
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -499,6 +621,15 @@ function ArchiveRestoreIcon() {
       <path strokeLinecap="round" strokeLinejoin="round" d="M3.4 5.4h13.2v3.2H3.4z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M4.6 8.6h10.8v6.2a1.2 1.2 0 0 1-1.2 1.2H5.8a1.2 1.2 0 0 1-1.2-1.2V8.6Z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="m10 12.9 2.3-2.3M10 12.9l-2.3-2.3M10 12.9V9.3" />
+    </svg>
+  );
+}
+
+function SparklesBroomIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="m11.7 4.2 4.1 4.1m-7.2 1 5.1-5.1 2.1 2.1-5.1 5.1-3.2 1.1 1.1-3.2Z" />
+      <path strokeLinecap="round" d="M4.4 4.3v2.4M3.2 5.5h2.4M4.7 12.7v1.8M3.8 13.6h1.8" />
     </svg>
   );
 }

@@ -85,10 +85,12 @@ export async function EntryCard({
                 <EntryActions
                   inline
                   align={align}
+                  duplicateCount={entry.duplicateSummary?.count || 0}
                   entryId={entry.id}
                   hasActiveShare={Boolean(entry.shareLink && !entry.shareLink.revokedAt)}
                   isArchived={Boolean(entry.archivedAt)}
                   isFavorite={entry.isFavorite}
+                  isPinned={Boolean(entry.pinnedAt)}
                   messageText={entry.message}
                 />
               ) : null}
@@ -101,6 +103,7 @@ export async function EntryCard({
                   )}
                 >
                   <span className="font-semibold text-slate-700">{displaySenderName}</span>
+                  {entry.pinnedAt ? <EntryStateBadge label={t(locale, "entry.pinned")} tone="cyan" /> : null}
                   {entry.isFavorite ? <EntryStateBadge label={t(locale, "entry.favorite")} tone="amber" /> : null}
                   {entry.archivedAt ? <EntryStateBadge label={t(locale, "entry.archived")} tone="slate" /> : null}
                   {entry.duplicateSummary ? (
@@ -569,7 +572,7 @@ function EntryStateBadge({
   tone
 }: {
   label: string;
-  tone: "amber" | "rose" | "slate";
+  tone: "amber" | "cyan" | "rose" | "slate";
 }) {
   return (
     <span
@@ -577,6 +580,8 @@ function EntryStateBadge({
         "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.04em]",
         tone === "amber"
           ? "border-amber-200/80 bg-amber-50/90 text-amber-700"
+          : tone === "cyan"
+            ? "border-cyan-200/80 bg-cyan-50/90 text-cyan-700"
           : tone === "rose"
             ? "border-rose-200/80 bg-rose-50/90 text-rose-700"
           : "border-slate-200/80 bg-white/85 text-slate-500"

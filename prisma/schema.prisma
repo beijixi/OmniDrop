@@ -38,6 +38,7 @@ model Entry {
   message   String?     @db.Text
   messageFingerprint String? @db.VarChar(64)
   canonicalUrl String?   @db.VarChar(2048)
+  pinnedAt DateTime?
   isFavorite Boolean    @default(false)
   archivedAt DateTime?
   createdAt DateTime    @default(now())
@@ -49,6 +50,7 @@ model Entry {
   @@index([type, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
   @@index([senderName, createdAt(sort: Desc)])
+  @@index([pinnedAt, createdAt(sort: Desc)])
   @@index([isFavorite, createdAt(sort: Desc)])
   @@index([archivedAt, createdAt(sort: Desc)])
   @@index([messageFingerprint, createdAt(sort: Desc)])

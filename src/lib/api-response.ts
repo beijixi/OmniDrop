@@ -80,6 +80,12 @@ export function apiErrorFromUnknown(
           message: "筛选视图不存在。",
           status: 404
         });
+      case "DUPLICATE_CLEANUP_UNAVAILABLE":
+        return apiError({
+          code: "DUPLICATE_CLEANUP_UNAVAILABLE",
+          message: "当前内容没有可清理的重复标识。",
+          status: 400
+        });
       default:
         return apiError({
           code: fallback.code,

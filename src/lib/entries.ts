@@ -58,6 +58,7 @@ export type EntrySearchSnippet = {
 };
 
 export type EntrySearchMatch = {
+  relevanceScore: number;
   sources: EntrySearchSnippetSource[];
   snippets: EntrySearchSnippet[];
 } | null;
@@ -77,7 +78,7 @@ export async function getEntries(filters: EntryFilters): Promise<TimelineEntry[]
   const rows = await prisma.entry.findMany({
     where: whereParts.length ? { AND: whereParts } : undefined,
     include: entryInclude,
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    orderBy: [{ pinnedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
     take: filters.duplicatesOnly ? 180 : 100
   });
   const duplicateSummaries = await buildDuplicateSummaryMap(rows);
@@ -87,9 +88,31 @@ export async function getEntries(filters: EntryFilters): Promise<TimelineEntry[]
     searchMatch: buildEntrySearchMatch(entry, filters.q)
   }));
 
-  return filters.duplicatesOnly
+  const filteredEntries = filters.duplicatesOnly
     ? entries.filter((entry) => Boolean(entry.duplicateSummary && entry.duplicateSummary.count > 1))
     : entries;
+
+  if (!filters.q?.trim()) {
+    return filteredEntries;
+  }
+
+  return filteredEntries.sort((left, right) => {
+    const leftPinned = left.pinnedAt ? new Date(left.pinnedAt).getTime() : 0;
+    const rightPinned = right.pinnedAt ? new Date(right.pinnedAt).getTime() : 0;
+
+    if (rightPinned !== leftPinned) {
+      return rightPinned - leftPinned;
+    }
+
+    const leftScore = left.searchMatch?.relevanceScore || 0;
+    const rightScore = right.searchMatch?.relevanceScore || 0;
+
+    if (rightScore !== leftScore) {
+      return rightScore - leftScore;
+    }
+
+    return right.createdAt.getTime() - left.createdAt.getTime();
+  });
 }
 
 export async function listEntriesPage(filters: EntryPageFilters): Promise<EntryPageResult> {
@@ -128,7 +151,7 @@ export async function listEntriesPage(filters: EntryPageFilters): Promise<EntryP
   const rows = await prisma.entry.findMany({
     where: whereParts.length ? { AND: whereParts } : undefined,
     include: entryInclude,
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    orderBy: [{ pinnedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
     take: limit + 1
   });
 
@@ -223,7 +246,7 @@ export async function createEntriesBatch(input: {
           }
         },
         include: entryInclude,
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }]
+        orderBy: [{ pinnedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }]
       });
     });
   } catch (error) {
@@ -286,6 +309,7 @@ export async function updateEntryState(
   input: {
     archived?: boolean;
     favorite?: boolean;
+    pinned?: boolean;
   }
 ) {
   const existing = await prisma.entry.findUnique({
@@ -295,6 +319,8 @@ export async function updateEntryState(
     select: {
       archivedAt: true,
       id: true
+      ,
+      pinnedAt: true
     }
   });
 
@@ -310,6 +336,10 @@ export async function updateEntryState(
 
   if (typeof input.archived === "boolean") {
     data.archivedAt = input.archived ? existing.archivedAt || new Date() : null;
+  }
+
+  if (typeof input.pinned === "boolean") {
+    data.pinnedAt = input.pinned ? existing.pinnedAt || new Date() : null;
   }
 
   if (Object.keys(data).length === 0) {
@@ -372,6 +402,70 @@ export async function deleteEntry(entryId: string) {
       storageDriver: asset.storageDriver
     }))
   );
+}
+
+export async function cleanupDuplicateEntries(entryId: string) {
+  const entry = await prisma.entry.findUnique({
+    where: {
+      id: entryId
+    },
+    include: {
+      assets: true
+    }
+  });
+
+  if (!entry) {
+    throw new Error("ENTRY_NOT_FOUND");
+  }
+
+  const lookup = getEntryDuplicateLookup(entry);
+
+  if (!lookup) {
+    throw new Error("DUPLICATE_CLEANUP_UNAVAILABLE");
+  }
+
+  const duplicates = await prisma.entry.findMany({
+    where: {
+      AND: [
+        buildDuplicateEntriesWhere(lookup),
+        {
+          id: {
+            not: entryId
+          }
+        }
+      ]
+    },
+    include: {
+      assets: true
+    }
+  });
+
+  if (duplicates.length === 0) {
+    return {
+      deletedCount: 0
+    };
+  }
+
+  await prisma.entry.deleteMany({
+    where: {
+      id: {
+        in: duplicates.map((item) => item.id)
+      }
+    }
+  });
+
+  await removeStoredAssets(
+    duplicates.flatMap((duplicate) =>
+      duplicate.assets.map((asset) => ({
+        relativePath: asset.relativePath,
+        storageDriver: asset.storageDriver
+      }))
+    )
+  );
+
+  return {
+    deletedCount: duplicates.length
+  };
 }
 
 export async function getSharedEntry(token: string): Promise<EntryWithRelations | null> {
@@ -557,6 +651,28 @@ function getEntryDuplicateLookup(entry: Pick<EntryWithRelations, "assets" | "can
   return null;
 }
 
+function buildDuplicateEntriesWhere(lookup: DuplicateLookup): Prisma.EntryWhereInput {
+  if (lookup.kind === "asset") {
+    return {
+      assets: {
+        some: {
+          contentHash: lookup.key
+        }
+      }
+    };
+  }
+
+  if (lookup.kind === "url") {
+    return {
+      canonicalUrl: lookup.key
+    };
+  }
+
+  return {
+    messageFingerprint: lookup.key
+  };
+}
+
 async function buildDuplicateSummaryMap(entries: EntryWithRelations[]) {
   const assetHashes = new Set<string>();
   const canonicalUrls = new Set<string>();
@@ -686,6 +802,7 @@ function buildEntrySearchMatch(entry: EntryWithRelations, query?: string): Entry
 
   const snippets: EntrySearchSnippet[] = [];
   const sourceSet = new Set<EntrySearchSnippetSource>();
+  let relevanceScore = 0;
 
   const pushSnippet = (snippet: EntrySearchSnippet | null) => {
     if (!snippet || snippets.length >= 4) {
@@ -694,6 +811,7 @@ function buildEntrySearchMatch(entry: EntryWithRelations, query?: string): Entry
 
     sourceSet.add(snippet.source);
     snippets.push(snippet);
+    relevanceScore += getSourceRelevance(snippet.source);
   };
 
   const messageSnippet = entry.message ? createSearchSnippet(entry.message, normalizedQuery) : null;
@@ -753,6 +871,7 @@ function buildEntrySearchMatch(entry: EntryWithRelations, query?: string): Entry
   }
 
   return {
+    relevanceScore,
     snippets,
     sources: [...sourceSet]
   };
@@ -780,4 +899,19 @@ function createSearchSnippet(
   const suffix = end < compacted.length ? "…" : "";
 
   return `${prefix}${compacted.slice(start, end).trim()}${suffix}`;
+}
+
+function getSourceRelevance(source: EntrySearchSnippetSource) {
+  switch (source) {
+    case "message":
+      return 40;
+    case "assetName":
+      return 30;
+    case "assetText":
+      return 20;
+    case "sender":
+      return 10;
+    default:
+      return 0;
+  }
 }

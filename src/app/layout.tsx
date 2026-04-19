@@ -58,6 +58,14 @@ export default async function RootLayout({
                     className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2"
                   />
                   <Link
+                    href="/duplicates"
+                    aria-label={messages["header.duplicates"]}
+                    className="glass-button inline-flex h-9 items-center justify-center gap-2 rounded-full px-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-[1px] hover:text-slate-950 sm:h-10 sm:px-4"
+                  >
+                    <DuplicatesIcon />
+                    <span className="hidden sm:inline">{messages["header.duplicates"]}</span>
+                  </Link>
+                  <Link
                     href="/settings"
                     aria-label={messages["header.settings"]}
                     className="glass-button inline-flex h-9 items-center justify-center gap-2 rounded-full px-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-[1px] hover:text-slate-950 sm:h-10 sm:px-4"
@@ -86,6 +94,17 @@ function SettingsIcon() {
         d="M10.2 3.6a1 1 0 0 1 1.6 0l1.03 1.41a1 1 0 0 0 1.08.37l1.69-.54a1 1 0 0 1 1.38.8l.23 1.72a1 1 0 0 0 .72.85l1.67.45a1 1 0 0 1 .5 1.52l-.96 1.46a1 1 0 0 0 0 1.1l.96 1.46a1 1 0 0 1-.5 1.52l-1.67.45a1 1 0 0 0-.72.85l-.23 1.72a1 1 0 0 1-1.38.8l-1.69-.54a1 1 0 0 0-1.08.37L11.8 20.4a1 1 0 0 1-1.6 0l-1.03-1.41a1 1 0 0 0-1.08-.37l-1.69.54a1 1 0 0 1-1.38-.8l-.23-1.72a1 1 0 0 0-.72-.85l-1.67-.45a1 1 0 0 1-.5-1.52l.96-1.46a1 1 0 0 0 0-1.1l-.96-1.46a1 1 0 0 1 .5-1.52l1.67-.45a1 1 0 0 0 .72-.85l.23-1.72a1 1 0 0 1 1.38-.8l1.69.54a1 1 0 0 0 1.08-.37L10.2 3.6Z"
       />
       <circle cx="12" cy="12" r="3.15" />
+    </svg>
+  );
+}
+
+function DuplicatesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="4.25" y="7.25" width="10.5" height="10.5" rx="2.2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.25 4.25h6.5a4 4 0 0 1 4 4v6.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 10.5h2.75v4.75" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 13.75h1.75" />
     </svg>
   );
 }

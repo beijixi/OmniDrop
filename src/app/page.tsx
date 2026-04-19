@@ -1,3 +1,4 @@
+import { BulkSelectionTimeline, SelectableEntryShell } from "@/components/bulk-selection-timeline";
 import { Composer } from "@/components/composer";
 import { EntryCard } from "@/components/entry-card";
 import { TimelineToolbar } from "@/components/timeline-toolbar";
@@ -52,18 +53,23 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         savedViews={savedViews}
       />
 
-      <div className="relative space-y-5 pb-24 sm:space-y-6 sm:pb-32">
+      <div className="relative">
         {entries.length > 0 ? (
-          entries.map((entry) => (
-            <EntryCard
-              key={entry.id}
-              entry={entry}
-              locale={locale}
-              viewerIp={viewerIp}
-              preferPdfInlinePreview={preferPdfInlinePreview}
-              searchQuery={currentQuery}
-            />
-          ))
+          <BulkSelectionTimeline entryIds={entries.map((entry) => entry.id)}>
+            <div className="space-y-5 pb-24 sm:space-y-6 sm:pb-32">
+              {entries.map((entry) => (
+                <SelectableEntryShell key={entry.id} entryId={entry.id}>
+                  <EntryCard
+                    entry={entry}
+                    locale={locale}
+                    viewerIp={viewerIp}
+                    preferPdfInlinePreview={preferPdfInlinePreview}
+                    searchQuery={currentQuery}
+                  />
+                </SelectableEntryShell>
+              ))}
+            </div>
+          </BulkSelectionTimeline>
         ) : (
           <div className="panel-strong relative overflow-hidden px-6 py-14 text-center">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.2),rgba(59,130,246,0)_62%)]" />

@@ -20,6 +20,7 @@ export const localeOptions: Array<{ code: AppLocale; label: string }> = [
 export type MessageKey =
   | "header.settings"
   | "header.language"
+  | "header.duplicates"
   | "toolbar.stream"
   | "toolbar.count"
   | "toolbar.clear"
@@ -38,6 +39,12 @@ export type MessageKey =
   | "toolbar.save_view_name_required"
   | "toolbar.save_view_failed"
   | "toolbar.delete_view_failed"
+  | "toolbar.organize"
+  | "toolbar.selection_count"
+  | "toolbar.select_all_visible"
+  | "toolbar.clear_selection"
+  | "toolbar.exit_selection"
+  | "toolbar.long_press_hint"
   | "empty.title"
   | "empty.description"
   | "composer.empty_error"
@@ -122,6 +129,18 @@ export type MessageKey =
   | "actions.internal_share_copied"
   | "actions.public_share_unavailable"
   | "actions.internal_share_unavailable"
+  | "actions.select_item"
+  | "actions.deselect_item"
+  | "actions.batch_empty"
+  | "actions.batch_failed"
+  | "actions.confirm_batch_delete"
+  | "actions.batch_pinned"
+  | "actions.batch_unpinned"
+  | "actions.batch_favorited"
+  | "actions.batch_unfavorited"
+  | "actions.batch_archived"
+  | "actions.batch_unarchived"
+  | "actions.batch_deleted"
   | "settings.eyebrow"
   | "settings.title"
   | "settings.subtitle"
@@ -143,7 +162,43 @@ export type MessageKey =
   | "share.description"
   | "not_found.title"
   | "not_found.description"
-  | "not_found.back_home";
+  | "not_found.back_home"
+  | "duplicates.eyebrow"
+  | "duplicates.title"
+  | "duplicates.subtitle"
+  | "duplicates.filter_all"
+  | "duplicates.filter_asset"
+  | "duplicates.filter_url"
+  | "duplicates.filter_text"
+  | "duplicates.summary_groups"
+  | "duplicates.summary_items"
+  | "duplicates.empty_title"
+  | "duplicates.empty_description"
+  | "duplicates.recommended"
+  | "duplicates.members"
+  | "duplicates.keep_recommended"
+  | "duplicates.keep_newest"
+  | "duplicates.keep_oldest"
+  | "duplicates.keep_this"
+  | "duplicates.confirm_cleanup"
+  | "duplicates.cleanup_done"
+  | "duplicates.cleanup_empty"
+  | "duplicates.cleanup_failed"
+  | "duplicates.kind_asset"
+  | "duplicates.kind_url"
+  | "duplicates.kind_text"
+  | "duplicates.reason_pinned"
+  | "duplicates.reason_favorite"
+  | "duplicates.reason_shared"
+  | "duplicates.reason_active"
+  | "duplicates.reason_newest"
+  | "duplicates.latest"
+  | "duplicates.oldest"
+  | "duplicates.group_count"
+  | "duplicates.member_assets"
+  | "duplicates.reasons_label"
+  | "duplicates.recommended_mark"
+  | "duplicates.open_home";
 
 type Messages = Record<MessageKey, string>;
 
@@ -151,6 +206,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
   "zh-CN": {
     "header.settings": "设置",
     "header.language": "语言",
+    "header.duplicates": "重复组",
     "toolbar.stream": "时间流",
     "toolbar.count": "{count} 条",
     "toolbar.clear": "清空",
@@ -169,6 +225,12 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "toolbar.save_view_name_required": "请先填写视图名称。",
     "toolbar.save_view_failed": "保存视图失败",
     "toolbar.delete_view_failed": "删除视图失败",
+    "toolbar.organize": "批量整理",
+    "toolbar.selection_count": "已选 {count} 条",
+    "toolbar.select_all_visible": "全选当前结果",
+    "toolbar.clear_selection": "清空选择",
+    "toolbar.exit_selection": "退出整理",
+    "toolbar.long_press_hint": "手机端长按内容也能直接进入多选。",
     "empty.title": "这里会像聊天一样持续流动",
     "empty.description": "直接从底部发送文本、图片、视频、PDF 或任意文件，内容会立刻出现在时间线上。",
     "composer.empty_error": "请输入文本，或者添加至少一个文件。",
@@ -253,6 +315,54 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.internal_share_copied": "内网链接已复制",
     "actions.public_share_unavailable": "公网分享地址不可用",
     "actions.internal_share_unavailable": "内网分享地址不可用",
+    "actions.select_item": "选择这条内容",
+    "actions.deselect_item": "取消选择这条内容",
+    "actions.batch_empty": "请先选择至少一条内容。",
+    "actions.batch_failed": "批量操作失败",
+    "actions.confirm_batch_delete": "确定删除选中的 {count} 条内容吗？文件也会一起删除。",
+    "actions.batch_pinned": "已置顶 {count} 条内容",
+    "actions.batch_unpinned": "已取消置顶 {count} 条内容",
+    "actions.batch_favorited": "已收藏 {count} 条内容",
+    "actions.batch_unfavorited": "已取消收藏 {count} 条内容",
+    "actions.batch_archived": "已归档 {count} 条内容",
+    "actions.batch_unarchived": "已取消归档 {count} 条内容",
+    "actions.batch_deleted": "已删除 {count} 条内容",
+    "duplicates.eyebrow": "Duplicate Groups",
+    "duplicates.title": "重复组工作台",
+    "duplicates.subtitle": "先按组看清楚，再决定保留哪一条。这里会把相同文件、相同链接和近乎相同的文本聚在一起，方便你批量收口。",
+    "duplicates.filter_all": "全部",
+    "duplicates.filter_asset": "文件",
+    "duplicates.filter_url": "链接",
+    "duplicates.filter_text": "文本",
+    "duplicates.summary_groups": "重复组",
+    "duplicates.summary_items": "重复内容",
+    "duplicates.empty_title": "现在还没有可处理的重复组",
+    "duplicates.empty_description": "等有重复文件、重复链接或重复文本后，这里会自动把它们聚在一起。",
+    "duplicates.recommended": "建议保留",
+    "duplicates.members": "组内内容",
+    "duplicates.keep_recommended": "保留建议项",
+    "duplicates.keep_newest": "保留最新",
+    "duplicates.keep_oldest": "保留最早",
+    "duplicates.keep_this": "保留这条",
+    "duplicates.confirm_cleanup": "确定保留选中的内容，并删除本组其他 {count} 条重复项吗？",
+    "duplicates.cleanup_done": "已清理 {count} 条重复项",
+    "duplicates.cleanup_empty": "这组内容已经没有其他重复项了",
+    "duplicates.cleanup_failed": "重复组清理失败",
+    "duplicates.kind_asset": "文件重复",
+    "duplicates.kind_url": "链接重复",
+    "duplicates.kind_text": "文本重复",
+    "duplicates.reason_pinned": "已置顶",
+    "duplicates.reason_favorite": "已收藏",
+    "duplicates.reason_shared": "已有分享",
+    "duplicates.reason_active": "仍在进行中",
+    "duplicates.reason_newest": "较新",
+    "duplicates.latest": "最新",
+    "duplicates.oldest": "最早",
+    "duplicates.group_count": "{count} 条",
+    "duplicates.member_assets": "{count} 个资源",
+    "duplicates.reasons_label": "推荐原因",
+    "duplicates.recommended_mark": "推荐",
+    "duplicates.open_home": "回到时间流",
     "settings.eyebrow": "Settings",
     "settings.title": "基础设置",
     "settings.subtitle": "MVP 只保留最必要的个性化配置，避免把个人工具做成复杂后台。",
@@ -279,6 +389,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
   en: {
     "header.settings": "Settings",
     "header.language": "Language",
+    "header.duplicates": "Duplicates",
     "toolbar.stream": "Stream",
     "toolbar.count": "{count} items",
     "toolbar.clear": "Clear",
@@ -297,6 +408,12 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "toolbar.save_view_name_required": "Please enter a name for this view.",
     "toolbar.save_view_failed": "Could not save this view",
     "toolbar.delete_view_failed": "Could not delete this view",
+    "toolbar.organize": "Bulk organize",
+    "toolbar.selection_count": "{count} selected",
+    "toolbar.select_all_visible": "Select visible",
+    "toolbar.clear_selection": "Clear selection",
+    "toolbar.exit_selection": "Exit organize",
+    "toolbar.long_press_hint": "On phones, you can also long-press an item to enter multi-select.",
     "empty.title": "This space will flow like a chat timeline",
     "empty.description": "Send text, images, videos, PDFs, or any file from the composer below and they will appear here instantly.",
     "composer.empty_error": "Type a message or add at least one file.",
@@ -381,6 +498,54 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.internal_share_copied": "Internal link copied",
     "actions.public_share_unavailable": "Public share URL is unavailable",
     "actions.internal_share_unavailable": "Internal share URL is unavailable",
+    "actions.select_item": "Select this item",
+    "actions.deselect_item": "Deselect this item",
+    "actions.batch_empty": "Select at least one item first.",
+    "actions.batch_failed": "Bulk update failed",
+    "actions.confirm_batch_delete": "Delete the {count} selected items? Attached files will be removed too.",
+    "actions.batch_pinned": "Pinned {count} items",
+    "actions.batch_unpinned": "Unpinned {count} items",
+    "actions.batch_favorited": "Favorited {count} items",
+    "actions.batch_unfavorited": "Removed {count} items from favorites",
+    "actions.batch_archived": "Archived {count} items",
+    "actions.batch_unarchived": "Moved {count} items back to active",
+    "actions.batch_deleted": "Deleted {count} items",
+    "duplicates.eyebrow": "Duplicate Groups",
+    "duplicates.title": "Duplicate Workbench",
+    "duplicates.subtitle": "Review duplicates in groups first, then decide which one to keep. Files, links, and repeated text are gathered here for cleanup.",
+    "duplicates.filter_all": "All",
+    "duplicates.filter_asset": "Files",
+    "duplicates.filter_url": "Links",
+    "duplicates.filter_text": "Text",
+    "duplicates.summary_groups": "Groups",
+    "duplicates.summary_items": "Duplicate items",
+    "duplicates.empty_title": "No duplicate groups to process yet",
+    "duplicates.empty_description": "Once duplicate files, links, or text appear, they will be grouped here automatically.",
+    "duplicates.recommended": "Recommended keep",
+    "duplicates.members": "Group items",
+    "duplicates.keep_recommended": "Keep recommended",
+    "duplicates.keep_newest": "Keep newest",
+    "duplicates.keep_oldest": "Keep oldest",
+    "duplicates.keep_this": "Keep this one",
+    "duplicates.confirm_cleanup": "Keep the selected item and delete the other {count} duplicates in this group?",
+    "duplicates.cleanup_done": "Removed {count} duplicates",
+    "duplicates.cleanup_empty": "This group has no other duplicates left",
+    "duplicates.cleanup_failed": "Duplicate cleanup failed",
+    "duplicates.kind_asset": "File duplicates",
+    "duplicates.kind_url": "Link duplicates",
+    "duplicates.kind_text": "Text duplicates",
+    "duplicates.reason_pinned": "Pinned",
+    "duplicates.reason_favorite": "Favorited",
+    "duplicates.reason_shared": "Shared",
+    "duplicates.reason_active": "Still active",
+    "duplicates.reason_newest": "Newest",
+    "duplicates.latest": "Latest",
+    "duplicates.oldest": "Oldest",
+    "duplicates.group_count": "{count} items",
+    "duplicates.member_assets": "{count} assets",
+    "duplicates.reasons_label": "Why it is recommended",
+    "duplicates.recommended_mark": "Recommended",
+    "duplicates.open_home": "Back to stream",
     "settings.eyebrow": "Settings",
     "settings.title": "Preferences",
     "settings.subtitle": "The MVP keeps only the essentials so your personal tool stays simple.",
@@ -407,6 +572,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
   ja: {
     "header.settings": "設定",
     "header.language": "言語",
+    "header.duplicates": "重複グループ",
     "toolbar.stream": "タイムライン",
     "toolbar.count": "{count} 件",
     "toolbar.clear": "クリア",
@@ -425,6 +591,12 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "toolbar.save_view_name_required": "ビュー名を入力してください。",
     "toolbar.save_view_failed": "ビューを保存できませんでした",
     "toolbar.delete_view_failed": "ビューを削除できませんでした",
+    "toolbar.organize": "一括整理",
+    "toolbar.selection_count": "{count} 件を選択中",
+    "toolbar.select_all_visible": "表示中を全選択",
+    "toolbar.clear_selection": "選択をクリア",
+    "toolbar.exit_selection": "整理を終了",
+    "toolbar.long_press_hint": "モバイルでは内容を長押しして複数選択に入れます。",
     "empty.title": "ここはチャットのように流れるタイムラインです",
     "empty.description": "下の入力欄からテキスト、画像、動画、PDF、その他のファイルを送ると、すぐにここへ表示されます。",
     "composer.empty_error": "テキストを入力するか、少なくとも 1 つのファイルを追加してください。",
@@ -509,6 +681,54 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.internal_share_copied": "内部リンクをコピーしました",
     "actions.public_share_unavailable": "公開共有 URL は利用できません",
     "actions.internal_share_unavailable": "内部共有 URL は利用できません",
+    "actions.select_item": "この内容を選択",
+    "actions.deselect_item": "この内容の選択を解除",
+    "actions.batch_empty": "少なくとも 1 件選択してください。",
+    "actions.batch_failed": "一括操作に失敗しました",
+    "actions.confirm_batch_delete": "選択した {count} 件を削除しますか？添付ファイルも削除されます。",
+    "actions.batch_pinned": "{count} 件を固定しました",
+    "actions.batch_unpinned": "{count} 件の固定を解除しました",
+    "actions.batch_favorited": "{count} 件をお気に入りに追加しました",
+    "actions.batch_unfavorited": "{count} 件をお気に入りから外しました",
+    "actions.batch_archived": "{count} 件をアーカイブしました",
+    "actions.batch_unarchived": "{count} 件をアクティブに戻しました",
+    "actions.batch_deleted": "{count} 件を削除しました",
+    "duplicates.eyebrow": "Duplicate Groups",
+    "duplicates.title": "重複グループ作業台",
+    "duplicates.subtitle": "まずグループで見比べてから、どれを残すか決められます。同じファイル、同じリンク、近い本文をここにまとめます。",
+    "duplicates.filter_all": "すべて",
+    "duplicates.filter_asset": "ファイル",
+    "duplicates.filter_url": "リンク",
+    "duplicates.filter_text": "テキスト",
+    "duplicates.summary_groups": "グループ数",
+    "duplicates.summary_items": "重複内容",
+    "duplicates.empty_title": "今は処理できる重複グループがありません",
+    "duplicates.empty_description": "重複したファイル、リンク、テキストが入ると、ここへ自動的にまとまります。",
+    "duplicates.recommended": "推奨保持",
+    "duplicates.members": "グループ内の内容",
+    "duplicates.keep_recommended": "推奨を残す",
+    "duplicates.keep_newest": "最新を残す",
+    "duplicates.keep_oldest": "最古を残す",
+    "duplicates.keep_this": "この内容を残す",
+    "duplicates.confirm_cleanup": "選択した内容を残し、このグループの他の {count} 件を削除しますか？",
+    "duplicates.cleanup_done": "{count} 件の重複を整理しました",
+    "duplicates.cleanup_empty": "このグループに他の重複は残っていません",
+    "duplicates.cleanup_failed": "重複グループの整理に失敗しました",
+    "duplicates.kind_asset": "ファイル重複",
+    "duplicates.kind_url": "リンク重複",
+    "duplicates.kind_text": "テキスト重複",
+    "duplicates.reason_pinned": "固定済み",
+    "duplicates.reason_favorite": "お気に入り",
+    "duplicates.reason_shared": "共有中",
+    "duplicates.reason_active": "アクティブ",
+    "duplicates.reason_newest": "新しい内容",
+    "duplicates.latest": "最新",
+    "duplicates.oldest": "最古",
+    "duplicates.group_count": "{count} 件",
+    "duplicates.member_assets": "{count} 件のファイル",
+    "duplicates.reasons_label": "推奨理由",
+    "duplicates.recommended_mark": "推奨",
+    "duplicates.open_home": "タイムラインへ戻る",
     "settings.eyebrow": "Settings",
     "settings.title": "基本設定",
     "settings.subtitle": "MVP では本当に必要な設定だけを残し、個人用ツールを複雑にしません。",
@@ -535,6 +755,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
   fr: {
     "header.settings": "Parametres",
     "header.language": "Langue",
+    "header.duplicates": "Doublons",
     "toolbar.stream": "Flux",
     "toolbar.count": "{count} elements",
     "toolbar.clear": "Effacer",
@@ -553,6 +774,12 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "toolbar.save_view_name_required": "Saisissez un nom pour cette vue.",
     "toolbar.save_view_failed": "Impossible d'enregistrer cette vue",
     "toolbar.delete_view_failed": "Impossible de supprimer cette vue",
+    "toolbar.organize": "Tri en lot",
+    "toolbar.selection_count": "{count} selectionnes",
+    "toolbar.select_all_visible": "Tout selectionner",
+    "toolbar.clear_selection": "Effacer la selection",
+    "toolbar.exit_selection": "Quitter le tri",
+    "toolbar.long_press_hint": "Sur mobile, un appui long sur un element ouvre aussi la multi-selection.",
     "empty.title": "Cet espace suit le rythme d'une conversation",
     "empty.description": "Envoyez du texte, des images, des vidéos, des PDF ou tout autre fichier depuis la zone du bas pour les voir apparaitre ici instantanément.",
     "composer.empty_error": "Saisissez un message ou ajoutez au moins un fichier.",
@@ -637,6 +864,54 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.internal_share_copied": "Lien interne copie",
     "actions.public_share_unavailable": "L'URL de partage public est indisponible",
     "actions.internal_share_unavailable": "L'URL de partage interne est indisponible",
+    "actions.select_item": "Selectionner cet element",
+    "actions.deselect_item": "Retirer cet element de la selection",
+    "actions.batch_empty": "Selectionnez au moins un element.",
+    "actions.batch_failed": "Echec de l'action en lot",
+    "actions.confirm_batch_delete": "Supprimer les {count} elements selectionnes ? Les fichiers associes seront aussi supprimes.",
+    "actions.batch_pinned": "{count} elements epingles",
+    "actions.batch_unpinned": "{count} elements desepingles",
+    "actions.batch_favorited": "{count} elements ajoutes aux favoris",
+    "actions.batch_unfavorited": "{count} elements retires des favoris",
+    "actions.batch_archived": "{count} elements archives",
+    "actions.batch_unarchived": "{count} elements remis dans le flux actif",
+    "actions.batch_deleted": "{count} elements supprimes",
+    "duplicates.eyebrow": "Duplicate Groups",
+    "duplicates.title": "Atelier des doublons",
+    "duplicates.subtitle": "Examinez d'abord les doublons par groupe, puis choisissez quoi conserver. Les fichiers, liens et textes repetes sont regroupes ici.",
+    "duplicates.filter_all": "Tout",
+    "duplicates.filter_asset": "Fichiers",
+    "duplicates.filter_url": "Liens",
+    "duplicates.filter_text": "Texte",
+    "duplicates.summary_groups": "Groupes",
+    "duplicates.summary_items": "Elements en doublon",
+    "duplicates.empty_title": "Aucun groupe de doublons a traiter pour le moment",
+    "duplicates.empty_description": "Quand des fichiers, liens ou textes en doublon apparaitront, ils seront regroupes ici automatiquement.",
+    "duplicates.recommended": "Conserver de preference",
+    "duplicates.members": "Elements du groupe",
+    "duplicates.keep_recommended": "Garder la recommandation",
+    "duplicates.keep_newest": "Garder le plus recent",
+    "duplicates.keep_oldest": "Garder le plus ancien",
+    "duplicates.keep_this": "Garder cet element",
+    "duplicates.confirm_cleanup": "Conserver l'element selectionne et supprimer les {count} autres doublons de ce groupe ?",
+    "duplicates.cleanup_done": "{count} doublons supprimes",
+    "duplicates.cleanup_empty": "Ce groupe n'a plus d'autre doublon",
+    "duplicates.cleanup_failed": "Le nettoyage des doublons a echoue",
+    "duplicates.kind_asset": "Doublons de fichiers",
+    "duplicates.kind_url": "Doublons de liens",
+    "duplicates.kind_text": "Doublons de texte",
+    "duplicates.reason_pinned": "Epingle",
+    "duplicates.reason_favorite": "Favori",
+    "duplicates.reason_shared": "Deja partage",
+    "duplicates.reason_active": "Toujours actif",
+    "duplicates.reason_newest": "Le plus recent",
+    "duplicates.latest": "Plus recent",
+    "duplicates.oldest": "Plus ancien",
+    "duplicates.group_count": "{count} elements",
+    "duplicates.member_assets": "{count} fichiers",
+    "duplicates.reasons_label": "Pourquoi cette recommandation",
+    "duplicates.recommended_mark": "Recommande",
+    "duplicates.open_home": "Retour au flux",
     "settings.eyebrow": "Settings",
     "settings.title": "Parametres",
     "settings.subtitle": "Le MVP ne conserve que l'essentiel afin que l'outil reste simple.",
@@ -663,6 +938,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
   de: {
     "header.settings": "Einstellungen",
     "header.language": "Sprache",
+    "header.duplicates": "Duplikate",
     "toolbar.stream": "Stream",
     "toolbar.count": "{count} Eintraege",
     "toolbar.clear": "Zuruecksetzen",
@@ -681,6 +957,12 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "toolbar.save_view_name_required": "Bitte einen Namen fuer diese Ansicht eingeben.",
     "toolbar.save_view_failed": "Ansicht konnte nicht gespeichert werden",
     "toolbar.delete_view_failed": "Ansicht konnte nicht geloescht werden",
+    "toolbar.organize": "Stapelaktion",
+    "toolbar.selection_count": "{count} ausgewaehlt",
+    "toolbar.select_all_visible": "Sichtbare auswaehlen",
+    "toolbar.clear_selection": "Auswahl leeren",
+    "toolbar.exit_selection": "Aktion verlassen",
+    "toolbar.long_press_hint": "Auf dem Handy startet ein langer Druck ebenfalls die Mehrfachauswahl.",
     "empty.title": "Dieser Bereich verhaelt sich wie ein Chat-Verlauf",
     "empty.description": "Sende unten Text, Bilder, Videos, PDFs oder beliebige Dateien und sie erscheinen sofort in der Timeline.",
     "composer.empty_error": "Gib eine Nachricht ein oder fuege mindestens eine Datei hinzu.",
@@ -765,6 +1047,54 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.internal_share_copied": "Interner Link kopiert",
     "actions.public_share_unavailable": "Oeffentliche Freigabe-URL ist nicht verfuegbar",
     "actions.internal_share_unavailable": "Interne Freigabe-URL ist nicht verfuegbar",
+    "actions.select_item": "Diesen Eintrag auswaehlen",
+    "actions.deselect_item": "Auswahl fuer diesen Eintrag aufheben",
+    "actions.batch_empty": "Bitte zuerst mindestens einen Eintrag auswaehlen.",
+    "actions.batch_failed": "Stapelaktion fehlgeschlagen",
+    "actions.confirm_batch_delete": "Die {count} ausgewaehlten Eintraege loeschen? Zugehoerige Dateien werden ebenfalls entfernt.",
+    "actions.batch_pinned": "{count} Eintraege angeheftet",
+    "actions.batch_unpinned": "{count} Eintraege geloest",
+    "actions.batch_favorited": "{count} Eintraege zu Favoriten hinzugefuegt",
+    "actions.batch_unfavorited": "{count} Eintraege aus Favoriten entfernt",
+    "actions.batch_archived": "{count} Eintraege archiviert",
+    "actions.batch_unarchived": "{count} Eintraege wieder aktiviert",
+    "actions.batch_deleted": "{count} Eintraege geloescht",
+    "duplicates.eyebrow": "Duplicate Groups",
+    "duplicates.title": "Duplikat-Werkbank",
+    "duplicates.subtitle": "Pruefe Duplikate zuerst gruppiert und entscheide dann, welcher Eintrag bleiben soll. Dateien, Links und aehnliche Texte werden hier gebuendelt.",
+    "duplicates.filter_all": "Alle",
+    "duplicates.filter_asset": "Dateien",
+    "duplicates.filter_url": "Links",
+    "duplicates.filter_text": "Text",
+    "duplicates.summary_groups": "Gruppen",
+    "duplicates.summary_items": "Doppelte Inhalte",
+    "duplicates.empty_title": "Im Moment gibt es keine Duplikatgruppen zu bearbeiten",
+    "duplicates.empty_description": "Sobald doppelte Dateien, Links oder Texte auftauchen, erscheinen sie hier automatisch als Gruppe.",
+    "duplicates.recommended": "Empfohlen zu behalten",
+    "duplicates.members": "Eintraege in der Gruppe",
+    "duplicates.keep_recommended": "Empfohlenen behalten",
+    "duplicates.keep_newest": "Neueste behalten",
+    "duplicates.keep_oldest": "Aelteste behalten",
+    "duplicates.keep_this": "Diesen behalten",
+    "duplicates.confirm_cleanup": "Den ausgewaehlten Eintrag behalten und die anderen {count} Duplikate dieser Gruppe loeschen?",
+    "duplicates.cleanup_done": "{count} Duplikate entfernt",
+    "duplicates.cleanup_empty": "Diese Gruppe hat keine weiteren Duplikate mehr",
+    "duplicates.cleanup_failed": "Duplikatbereinigung fehlgeschlagen",
+    "duplicates.kind_asset": "Datei-Duplikate",
+    "duplicates.kind_url": "Link-Duplikate",
+    "duplicates.kind_text": "Text-Duplikate",
+    "duplicates.reason_pinned": "Angeheftet",
+    "duplicates.reason_favorite": "Favorit",
+    "duplicates.reason_shared": "Bereits geteilt",
+    "duplicates.reason_active": "Noch aktiv",
+    "duplicates.reason_newest": "Neuester",
+    "duplicates.latest": "Neueste",
+    "duplicates.oldest": "Aelteste",
+    "duplicates.group_count": "{count} Eintraege",
+    "duplicates.member_assets": "{count} Dateien",
+    "duplicates.reasons_label": "Warum empfohlen",
+    "duplicates.recommended_mark": "Empfohlen",
+    "duplicates.open_home": "Zurueck zum Stream",
     "settings.eyebrow": "Settings",
     "settings.title": "Einstellungen",
     "settings.subtitle": "Das MVP behaelt nur das Nötigste, damit dein persoenliches Tool einfach bleibt.",
@@ -791,6 +1121,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
   es: {
     "header.settings": "Ajustes",
     "header.language": "Idioma",
+    "header.duplicates": "Duplicados",
     "toolbar.stream": "Flujo",
     "toolbar.count": "{count} elementos",
     "toolbar.clear": "Limpiar",
@@ -809,6 +1140,12 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "toolbar.save_view_name_required": "Escribe un nombre para esta vista.",
     "toolbar.save_view_failed": "No se pudo guardar esta vista",
     "toolbar.delete_view_failed": "No se pudo eliminar esta vista",
+    "toolbar.organize": "Organizar en lote",
+    "toolbar.selection_count": "{count} seleccionados",
+    "toolbar.select_all_visible": "Seleccionar visibles",
+    "toolbar.clear_selection": "Limpiar seleccion",
+    "toolbar.exit_selection": "Salir de organizar",
+    "toolbar.long_press_hint": "En movil tambien puedes mantener pulsado un elemento para entrar en multi-seleccion.",
     "empty.title": "Este espacio fluye como una conversacion",
     "empty.description": "Envia texto, imagenes, videos, PDF o cualquier archivo desde el compositor inferior y aparecera aqui al instante.",
     "composer.empty_error": "Escribe un mensaje o agrega al menos un archivo.",
@@ -893,6 +1230,54 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.internal_share_copied": "Enlace interno copiado",
     "actions.public_share_unavailable": "La URL publica no esta disponible",
     "actions.internal_share_unavailable": "La URL interna no esta disponible",
+    "actions.select_item": "Seleccionar este elemento",
+    "actions.deselect_item": "Quitar este elemento de la seleccion",
+    "actions.batch_empty": "Selecciona al menos un elemento primero.",
+    "actions.batch_failed": "La accion en lote fallo",
+    "actions.confirm_batch_delete": "¿Eliminar los {count} elementos seleccionados? Los archivos adjuntos tambien se eliminaran.",
+    "actions.batch_pinned": "Se fijaron {count} elementos",
+    "actions.batch_unpinned": "Se quitaron {count} fijados",
+    "actions.batch_favorited": "Se anadieron {count} elementos a favoritos",
+    "actions.batch_unfavorited": "Se quitaron {count} elementos de favoritos",
+    "actions.batch_archived": "Se archivaron {count} elementos",
+    "actions.batch_unarchived": "Se devolvieron {count} elementos al flujo activo",
+    "actions.batch_deleted": "Se eliminaron {count} elementos",
+    "duplicates.eyebrow": "Duplicate Groups",
+    "duplicates.title": "Mesa de duplicados",
+    "duplicates.subtitle": "Primero revisa los duplicados por grupo y luego decide cual conservar. Aqui se juntan archivos, enlaces y textos repetidos.",
+    "duplicates.filter_all": "Todo",
+    "duplicates.filter_asset": "Archivos",
+    "duplicates.filter_url": "Enlaces",
+    "duplicates.filter_text": "Texto",
+    "duplicates.summary_groups": "Grupos",
+    "duplicates.summary_items": "Elementos duplicados",
+    "duplicates.empty_title": "Todavia no hay grupos duplicados para procesar",
+    "duplicates.empty_description": "Cuando aparezcan archivos, enlaces o textos duplicados, se agruparan aqui automaticamente.",
+    "duplicates.recommended": "Recomendado conservar",
+    "duplicates.members": "Elementos del grupo",
+    "duplicates.keep_recommended": "Conservar recomendado",
+    "duplicates.keep_newest": "Conservar mas reciente",
+    "duplicates.keep_oldest": "Conservar mas antiguo",
+    "duplicates.keep_this": "Conservar este",
+    "duplicates.confirm_cleanup": "¿Conservar el elemento seleccionado y eliminar los otros {count} duplicados de este grupo?",
+    "duplicates.cleanup_done": "Se eliminaron {count} duplicados",
+    "duplicates.cleanup_empty": "Este grupo ya no tiene otros duplicados",
+    "duplicates.cleanup_failed": "La limpieza de duplicados fallo",
+    "duplicates.kind_asset": "Duplicados de archivos",
+    "duplicates.kind_url": "Duplicados de enlaces",
+    "duplicates.kind_text": "Duplicados de texto",
+    "duplicates.reason_pinned": "Fijado",
+    "duplicates.reason_favorite": "Favorito",
+    "duplicates.reason_shared": "Ya compartido",
+    "duplicates.reason_active": "Sigue activo",
+    "duplicates.reason_newest": "Mas reciente",
+    "duplicates.latest": "Mas reciente",
+    "duplicates.oldest": "Mas antiguo",
+    "duplicates.group_count": "{count} elementos",
+    "duplicates.member_assets": "{count} archivos",
+    "duplicates.reasons_label": "Por que se recomienda",
+    "duplicates.recommended_mark": "Recomendado",
+    "duplicates.open_home": "Volver al flujo",
     "settings.eyebrow": "Settings",
     "settings.title": "Ajustes",
     "settings.subtitle": "El MVP solo conserva lo esencial para que tu herramienta personal siga siendo simple.",

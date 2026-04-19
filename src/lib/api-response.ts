@@ -74,6 +74,30 @@ export function apiErrorFromUnknown(
           message: "请填写筛选视图名称。",
           status: 400
         });
+      case "EMPTY_ENTRY_BATCH":
+        return apiError({
+          code: "EMPTY_ENTRY_BATCH",
+          message: "请先选择至少一条内容。",
+          status: 400
+        });
+      case "EMPTY_DUPLICATE_KEEP_ENTRY":
+        return apiError({
+          code: "EMPTY_DUPLICATE_KEEP_ENTRY",
+          message: "请先指定要保留的内容。",
+          status: 400
+        });
+      case "DUPLICATE_KEEP_ENTRY_NOT_FOUND":
+        return apiError({
+          code: "DUPLICATE_KEEP_ENTRY_NOT_FOUND",
+          message: "要保留的内容不在这个重复组里。",
+          status: 400
+        });
+      case "DUPLICATE_GROUP_NOT_FOUND":
+        return apiError({
+          code: "DUPLICATE_GROUP_NOT_FOUND",
+          message: "这个重复组不存在，或者已经被清理完了。",
+          status: 404
+        });
       case "SAVED_VIEW_NOT_FOUND":
         return apiError({
           code: "SAVED_VIEW_NOT_FOUND",

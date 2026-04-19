@@ -63,6 +63,31 @@ export type EntrySearchMatch = {
   snippets: EntrySearchSnippet[];
 } | null;
 
+export type EntryBatchAction =
+  | "archive"
+  | "delete"
+  | "favorite"
+  | "pin"
+  | "unarchive"
+  | "unfavorite"
+  | "unpin";
+
+export type DuplicateGroupAction = "keep_entry" | "keep_newest" | "keep_oldest" | "keep_preferred";
+
+export type DuplicateGroupRecommendationReason = "active" | "favorite" | "newest" | "pinned" | "shared";
+
+export type DuplicateGroup = {
+  count: number;
+  entries: EntryWithRelations[];
+  id: string;
+  key: string;
+  kind: DuplicateKind;
+  newestEntryId: string;
+  oldestEntryId: string;
+  recommendedEntryId: string;
+  recommendedReasons: DuplicateGroupRecommendationReason[];
+};
+
 export type TimelineEntry = EntryWithRelations & {
   duplicateSummary: EntryDuplicateSummary | null;
   searchMatch: EntrySearchMatch;
@@ -404,52 +429,277 @@ export async function deleteEntry(entryId: string) {
   );
 }
 
-export async function cleanupDuplicateEntries(entryId: string) {
-  const entry = await prisma.entry.findUnique({
+export async function applyEntryBatchAction(entryIdsInput: string[], action: EntryBatchAction) {
+  const entryIds = normalizeEntryIds(entryIdsInput);
+
+  if (entryIds.length === 0) {
+    throw new Error("EMPTY_ENTRY_BATCH");
+  }
+
+  if (action === "delete") {
+    const entries = await prisma.entry.findMany({
+      where: {
+        id: {
+          in: entryIds
+        }
+      },
+      include: {
+        assets: true
+      }
+    });
+
+    if (entries.length === 0) {
+      throw new Error("ENTRY_NOT_FOUND");
+    }
+
+    await prisma.entry.deleteMany({
+      where: {
+        id: {
+          in: entries.map((entry) => entry.id)
+        }
+      }
+    });
+
+    await removeStoredAssets(
+      entries.flatMap((entry) =>
+        entry.assets.map((asset) => ({
+          relativePath: asset.relativePath,
+          storageDriver: asset.storageDriver
+        }))
+      )
+    );
+
+    return {
+      action,
+      changedCount: entries.length,
+      matchedCount: entries.length
+    };
+  }
+
+  const existingEntries = await prisma.entry.findMany({
     where: {
-      id: entryId
+      id: {
+        in: entryIds
+      }
     },
-    include: {
-      assets: true
+    select: {
+      id: true
     }
   });
 
-  if (!entry) {
+  if (existingEntries.length === 0) {
     throw new Error("ENTRY_NOT_FOUND");
   }
 
-  const lookup = getEntryDuplicateLookup(entry);
+  const existingEntryIds = existingEntries.map((entry) => entry.id);
+  let changedCount = 0;
 
-  if (!lookup) {
-    throw new Error("DUPLICATE_CLEANUP_UNAVAILABLE");
+  if (action === "favorite") {
+    changedCount = (
+      await prisma.entry.updateMany({
+        where: {
+          id: {
+            in: existingEntryIds
+          },
+          isFavorite: false
+        },
+        data: {
+          isFavorite: true
+        }
+      })
+    ).count;
   }
 
-  const duplicates = await prisma.entry.findMany({
-    where: {
-      AND: [
-        buildDuplicateEntriesWhere(lookup),
-        {
+  if (action === "unfavorite") {
+    changedCount = (
+      await prisma.entry.updateMany({
+        where: {
           id: {
-            not: entryId
+            in: existingEntryIds
+          },
+          isFavorite: true
+        },
+        data: {
+          isFavorite: false
+        }
+      })
+    ).count;
+  }
+
+  if (action === "archive") {
+    changedCount = (
+      await prisma.entry.updateMany({
+        where: {
+          archivedAt: null,
+          id: {
+            in: existingEntryIds
+          }
+        },
+        data: {
+          archivedAt: new Date()
+        }
+      })
+    ).count;
+  }
+
+  if (action === "unarchive") {
+    changedCount = (
+      await prisma.entry.updateMany({
+        where: {
+          archivedAt: {
+            not: null
+          },
+          id: {
+            in: existingEntryIds
+          }
+        },
+        data: {
+          archivedAt: null
+        }
+      })
+    ).count;
+  }
+
+  if (action === "pin") {
+    changedCount = (
+      await prisma.entry.updateMany({
+        where: {
+          id: {
+            in: existingEntryIds
+          },
+          pinnedAt: null
+        },
+        data: {
+          pinnedAt: new Date()
+        }
+      })
+    ).count;
+  }
+
+  if (action === "unpin") {
+    changedCount = (
+      await prisma.entry.updateMany({
+        where: {
+          id: {
+            in: existingEntryIds
+          },
+          pinnedAt: {
+            not: null
+          }
+        },
+        data: {
+          pinnedAt: null
+        }
+      })
+    ).count;
+  }
+
+  return {
+    action,
+    changedCount,
+    matchedCount: existingEntryIds.length
+  };
+}
+
+export async function listDuplicateGroups(filters?: {
+  kind?: DuplicateKind;
+}): Promise<DuplicateGroup[]> {
+  const rows = await prisma.entry.findMany({
+    where: {
+      OR: [
+        {
+          assets: {
+            some: {
+              contentHash: {
+                not: null
+              }
+            }
+          }
+        },
+        {
+          canonicalUrl: {
+            not: null
+          }
+        },
+        {
+          messageFingerprint: {
+            not: null
           }
         }
       ]
     },
-    include: {
-      assets: true
-    }
+    include: entryInclude,
+    orderBy: [{ pinnedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }]
   });
+  const groupMap = new Map<string, { key: string; kind: DuplicateKind; entries: EntryWithRelations[] }>();
+
+  rows.forEach((entry) => {
+    const lookup = getEntryDuplicateLookup(entry);
+
+    if (!lookup || (filters?.kind && lookup.kind !== filters.kind)) {
+      return;
+    }
+
+    const groupId = getDuplicateGroupId(lookup);
+    const existing = groupMap.get(groupId);
+
+    if (existing) {
+      existing.entries.push(entry);
+      return;
+    }
+
+    groupMap.set(groupId, {
+      key: lookup.key,
+      kind: lookup.kind,
+      entries: [entry]
+    });
+  });
+
+  return [...groupMap.values()]
+    .filter((group) => group.entries.length > 1)
+    .map((group) => buildDuplicateGroup(group))
+    .sort((left, right) => {
+      if (right.count !== left.count) {
+        return right.count - left.count;
+      }
+
+      const leftNewest = getEntryByIdOrFallback(left.entries, left.newestEntryId);
+      const rightNewest = getEntryByIdOrFallback(right.entries, right.newestEntryId);
+
+      return compareEntriesByNewest(leftNewest, rightNewest);
+    });
+}
+
+export async function cleanupDuplicateGroup(input: {
+  action: DuplicateGroupAction;
+  entryId?: string;
+  key: string;
+  kind: DuplicateKind;
+}) {
+  const lookup = {
+    key: input.key,
+    kind: input.kind
+  } satisfies DuplicateLookup;
+  const entries = await findDuplicateGroupEntries(lookup);
+
+  if (entries.length === 0) {
+    throw new Error("DUPLICATE_GROUP_NOT_FOUND");
+  }
+
+  const keepEntry = resolveDuplicateGroupKeepEntry(entries, input);
+  const duplicates = entries.filter((entry) => entry.id !== keepEntry.id);
 
   if (duplicates.length === 0) {
     return {
-      deletedCount: 0
+      deletedCount: 0,
+      keptEntryId: keepEntry.id
     };
   }
 
   await prisma.entry.deleteMany({
     where: {
       id: {
-        in: duplicates.map((item) => item.id)
+        in: duplicates.map((entry) => entry.id)
       }
     }
   });
@@ -464,7 +714,38 @@ export async function cleanupDuplicateEntries(entryId: string) {
   );
 
   return {
-    deletedCount: duplicates.length
+    deletedCount: duplicates.length,
+    keptEntryId: keepEntry.id
+  };
+}
+
+export async function cleanupDuplicateEntries(entryId: string) {
+  const entry = await prisma.entry.findUnique({
+    where: {
+      id: entryId
+    },
+    include: entryInclude
+  });
+
+  if (!entry) {
+    throw new Error("ENTRY_NOT_FOUND");
+  }
+
+  const lookup = getEntryDuplicateLookup(entry);
+
+  if (!lookup) {
+    throw new Error("DUPLICATE_CLEANUP_UNAVAILABLE");
+  }
+
+  const result = await cleanupDuplicateGroup({
+    action: "keep_entry",
+    entryId,
+    key: lookup.key,
+    kind: lookup.kind
+  });
+
+  return {
+    deletedCount: result.deletedCount
   };
 }
 
@@ -581,6 +862,10 @@ function normalizeEntryPageSize(value?: number): number {
   return Math.max(1, Math.min(MAX_ENTRY_PAGE_SIZE, Math.floor(value)));
 }
 
+function normalizeEntryIds(entryIds: string[]) {
+  return [...new Set(entryIds.map((entryId) => entryId.trim()).filter(Boolean))];
+}
+
 function encodeEntryCursor(entry: EntryWithRelations): string {
   return Buffer.from(
     JSON.stringify({
@@ -671,6 +956,19 @@ function buildDuplicateEntriesWhere(lookup: DuplicateLookup): Prisma.EntryWhereI
   return {
     messageFingerprint: lookup.key
   };
+}
+
+async function findDuplicateGroupEntries(lookup: DuplicateLookup) {
+  const rows = await prisma.entry.findMany({
+    where: buildDuplicateEntriesWhere(lookup),
+    include: entryInclude,
+    orderBy: [{ pinnedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }]
+  });
+
+  return rows.filter((entry) => {
+    const entryLookup = getEntryDuplicateLookup(entry);
+    return entryLookup?.kind === lookup.kind && entryLookup.key === lookup.key;
+  });
 }
 
 async function buildDuplicateSummaryMap(entries: EntryWithRelations[]) {
@@ -791,6 +1089,153 @@ async function buildDuplicateSummaryMap(entries: EntryWithRelations[]) {
   });
 
   return summaryMap;
+}
+
+function buildDuplicateGroup(input: {
+  entries: EntryWithRelations[];
+  key: string;
+  kind: DuplicateKind;
+}): DuplicateGroup {
+  const recommendedEntry = choosePreferredDuplicateEntry(input.entries);
+  const newestEntry = [...input.entries].sort(compareEntriesByNewest)[0];
+  const oldestEntry = [...input.entries].sort(compareEntriesByOldest)[0];
+  const orderedEntries = [...input.entries].sort((left, right) => {
+    if (left.id === recommendedEntry.id && right.id !== recommendedEntry.id) {
+      return -1;
+    }
+
+    if (right.id === recommendedEntry.id && left.id !== recommendedEntry.id) {
+      return 1;
+    }
+
+    return compareEntriesByKeepPreference(left, right);
+  });
+
+  return {
+    count: input.entries.length,
+    entries: orderedEntries,
+    id: getDuplicateGroupId({
+      key: input.key,
+      kind: input.kind
+    }),
+    key: input.key,
+    kind: input.kind,
+    newestEntryId: newestEntry.id,
+    oldestEntryId: oldestEntry.id,
+    recommendedEntryId: recommendedEntry.id,
+    recommendedReasons: buildDuplicateRecommendationReasons(recommendedEntry, newestEntry.id)
+  };
+}
+
+function resolveDuplicateGroupKeepEntry(
+  entries: EntryWithRelations[],
+  input: {
+    action: DuplicateGroupAction;
+    entryId?: string;
+  }
+) {
+  if (input.action === "keep_entry") {
+    if (!input.entryId) {
+      throw new Error("EMPTY_DUPLICATE_KEEP_ENTRY");
+    }
+
+    const selectedEntry = entries.find((entry) => entry.id === input.entryId);
+
+    if (!selectedEntry) {
+      throw new Error("DUPLICATE_KEEP_ENTRY_NOT_FOUND");
+    }
+
+    return selectedEntry;
+  }
+
+  if (input.action === "keep_oldest") {
+    return [...entries].sort(compareEntriesByOldest)[0];
+  }
+
+  if (input.action === "keep_newest") {
+    return [...entries].sort(compareEntriesByNewest)[0];
+  }
+
+  return choosePreferredDuplicateEntry(entries);
+}
+
+function choosePreferredDuplicateEntry(entries: EntryWithRelations[]) {
+  return [...entries].sort(compareEntriesByKeepPreference)[0];
+}
+
+function buildDuplicateRecommendationReasons(
+  entry: EntryWithRelations,
+  newestEntryId: string
+): DuplicateGroupRecommendationReason[] {
+  const reasons: DuplicateGroupRecommendationReason[] = [];
+
+  if (entry.pinnedAt) {
+    reasons.push("pinned");
+  }
+
+  if (entry.isFavorite) {
+    reasons.push("favorite");
+  }
+
+  if (entry.shareLink && !entry.shareLink.revokedAt) {
+    reasons.push("shared");
+  }
+
+  if (!entry.archivedAt) {
+    reasons.push("active");
+  }
+
+  if (entry.id === newestEntryId || reasons.length === 0) {
+    reasons.push("newest");
+  }
+
+  return reasons;
+}
+
+function compareEntriesByKeepPreference(left: EntryWithRelations, right: EntryWithRelations) {
+  const leftShareActive = left.shareLink && !left.shareLink.revokedAt ? 1 : 0;
+  const rightShareActive = right.shareLink && !right.shareLink.revokedAt ? 1 : 0;
+  const comparisons = [
+    compareNumbers(Boolean(right.pinnedAt) ? 1 : 0, Boolean(left.pinnedAt) ? 1 : 0),
+    compareNumbers(right.isFavorite ? 1 : 0, left.isFavorite ? 1 : 0),
+    compareNumbers(rightShareActive, leftShareActive),
+    compareNumbers(right.archivedAt ? 0 : 1, left.archivedAt ? 0 : 1),
+    compareEntriesByNewest(left, right)
+  ];
+
+  return comparisons.find((value) => value !== 0) || 0;
+}
+
+function compareEntriesByNewest(left: EntryWithRelations, right: EntryWithRelations) {
+  const createdTimeDiff = right.createdAt.getTime() - left.createdAt.getTime();
+
+  if (createdTimeDiff !== 0) {
+    return createdTimeDiff;
+  }
+
+  return right.id.localeCompare(left.id);
+}
+
+function compareEntriesByOldest(left: EntryWithRelations, right: EntryWithRelations) {
+  const createdTimeDiff = left.createdAt.getTime() - right.createdAt.getTime();
+
+  if (createdTimeDiff !== 0) {
+    return createdTimeDiff;
+  }
+
+  return left.id.localeCompare(right.id);
+}
+
+function compareNumbers(left: number, right: number) {
+  return left - right;
+}
+
+function getDuplicateGroupId(lookup: DuplicateLookup) {
+  return Buffer.from(`${lookup.kind}:${lookup.key}`, "utf8").toString("base64url");
+}
+
+function getEntryByIdOrFallback(entries: EntryWithRelations[], entryId: string) {
+  return entries.find((entry) => entry.id === entryId) || entries[0];
 }
 
 function buildEntrySearchMatch(entry: EntryWithRelations, query?: string): EntrySearchMatch {

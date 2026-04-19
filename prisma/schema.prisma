@@ -36,6 +36,7 @@ model Entry {
   senderIp   String?
   senderHost String?
   message   String?     @db.Text
+  note      String?     @db.Text
   messageFingerprint String? @db.VarChar(64)
   canonicalUrl String?   @db.VarChar(2048)
   pinnedAt DateTime?
@@ -44,6 +45,7 @@ model Entry {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
   assets    Asset[]
+  collections CollectionEntry[]
   tags      EntryTag[]
   shareLink ShareLink?
 
@@ -109,6 +111,40 @@ model EntryTag {
 
   @@id([entryId, tagId])
   @@index([tagId, entryId])
+}
+
+model Collection {
+  id          String               @id @default(cuid())
+  title       String               @db.VarChar(120)
+  description String?              @db.Text
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  entries     CollectionEntry[]
+  shareLink   CollectionShareLink?
+
+  @@index([updatedAt(sort: Desc)])
+}
+
+model CollectionEntry {
+  collectionId String
+  entryId      String
+  position     Int                  @default(0)
+  createdAt    DateTime             @default(now())
+  collection   Collection           @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  entry        Entry                @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, entryId])
+  @@index([collectionId, position, createdAt])
+  @@index([entryId, createdAt])
+}
+
+model CollectionShareLink {
+  id           String      @id @default(cuid())
+  token        String      @unique
+  collectionId String      @unique
+  collection   Collection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+  revokedAt    DateTime?
 }
 
 model ShareLink {

@@ -17,6 +17,7 @@ type EntryActionsProps = {
   isPinned?: boolean;
   inline?: boolean;
   messageText?: string | null;
+  note?: string | null;
   tags?: string[];
 };
 
@@ -35,6 +36,7 @@ export function EntryActions({
   isPinned = false,
   inline = false,
   messageText = null,
+  note = null,
   tags = []
 }: EntryActionsProps) {
   const router = useRouter();
@@ -44,7 +46,10 @@ export function EntryActions({
   const [favorite, setFavorite] = useState(isFavorite);
   const [archived, setArchived] = useState(isArchived);
   const [pinned, setPinned] = useState(isPinned);
+  const [entryNote, setEntryNote] = useState(note || "");
   const [entryTags, setEntryTags] = useState(tags);
+  const [showNoteEditor, setShowNoteEditor] = useState(false);
+  const [noteDraft, setNoteDraft] = useState(note || "");
   const [showTagEditor, setShowTagEditor] = useState(false);
   const [tagDraft, setTagDraft] = useState(tags.join(", "));
   const [isOpen, setIsOpen] = useState(false);
@@ -54,10 +59,12 @@ export function EntryActions({
     | "clear_tags"
     | "cleanup_duplicates"
     | "delete"
+    | "edit_note"
     | "edit_tags"
     | "favorite"
     | "pin"
     | "revoke"
+    | "save_note"
     | "save_tags"
     | "share_public"
     | "share_internal"
@@ -83,6 +90,11 @@ export function EntryActions({
   useEffect(() => {
     setPinned(isPinned);
   }, [isPinned]);
+
+  useEffect(() => {
+    setEntryNote(note || "");
+    setNoteDraft(note || "");
+  }, [note]);
 
   useEffect(() => {
     setEntryTags(tags);
@@ -239,6 +251,7 @@ export function EntryActions({
   async function updateEntryState(input: {
     archived?: boolean;
     favorite?: boolean;
+    note?: string | null;
     pinned?: boolean;
     tags?: string[];
   }) {
@@ -254,6 +267,7 @@ export function EntryActions({
         entry?: {
           archivedAt?: string | null;
           isFavorite?: boolean;
+          note?: string | null;
           pinnedAt?: string | null;
           tags?: string[];
         };
@@ -270,6 +284,8 @@ export function EntryActions({
             ? t("actions.archive_failed")
             : typeof input.pinned === "boolean"
               ? t("actions.pin_failed")
+              : input.note !== undefined
+                ? t("actions.note_failed")
               : Array.isArray(input.tags)
                 ? t("actions.tags_failed")
                 : t("actions.favorite_failed"))
@@ -279,6 +295,8 @@ export function EntryActions({
     setFavorite(Boolean(payload.data.entry.isFavorite));
     setArchived(Boolean(payload.data.entry.archivedAt));
     setPinned(Boolean(payload.data.entry.pinnedAt));
+    setEntryNote(payload.data.entry.note || "");
+    setNoteDraft(payload.data.entry.note || "");
     setEntryTags(payload.data.entry.tags || []);
     setTagDraft((payload.data.entry.tags || []).join(", "));
     router.refresh();
@@ -359,6 +377,29 @@ export function EntryActions({
     } finally {
       setLoadingAction("");
     }
+  }
+
+  async function handleSaveNote(nextNote: string) {
+    setLoadingAction("save_note");
+    setStatus("");
+
+    try {
+      await updateEntryState({
+        note: nextNote
+      });
+      const normalizedNote = nextNote.trim();
+      setTransientStatus(normalizedNote ? t("actions.note_saved") : t("actions.note_cleared"));
+      setShowNoteEditor(false);
+    } catch (error) {
+      setTransientStatus(error instanceof Error ? error.message : t("actions.note_failed"));
+    } finally {
+      setLoadingAction("");
+    }
+  }
+
+  async function handleSubmitNote(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await handleSaveNote(noteDraft);
   }
 
   async function handleSubmitTags(event: React.FormEvent<HTMLFormElement>) {
@@ -477,11 +518,59 @@ export function EntryActions({
                 onClick={() => void handleArchiveToggle()}
               />
               <ActionMenuButton
+                icon={<NoteIcon />}
+                label={t("actions.edit_note")}
+                loading={loadingAction === "save_note"}
+                onClick={() => {
+                  setShowNoteEditor((current) => !current);
+                  setShowTagEditor(false);
+                  setNoteDraft(entryNote);
+                }}
+              />
+
+              {showNoteEditor ? (
+                <form
+                  className="rounded-[18px] border border-white/75 bg-white/78 p-3 shadow-[0_10px_22px_rgba(15,23,42,0.04)]"
+                  onSubmit={(event) => void handleSubmitNote(event)}
+                >
+                  <textarea
+                    value={noteDraft}
+                    onChange={(event) => setNoteDraft(event.target.value)}
+                    placeholder={t("actions.note_placeholder")}
+                    rows={3}
+                    className="w-full rounded-[14px] border border-slate-200/80 bg-white/92 px-3 py-2.5 text-sm leading-6 text-slate-800 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200"
+                  />
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="submit"
+                      disabled={loadingAction === "save_note"}
+                      className="rounded-full bg-[linear-gradient(135deg,#0f172a,#0f766e_58%,#38bdf8)] px-3 py-1.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(14,165,233,0.18)] transition disabled:cursor-wait disabled:opacity-70"
+                    >
+                      {t("actions.save_note")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={loadingAction === "save_note"}
+                      onClick={() => {
+                        setNoteDraft("");
+                        void handleSaveNote("");
+                      }}
+                      className="rounded-full border border-slate-200/80 bg-white/92 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 disabled:cursor-wait disabled:opacity-70"
+                    >
+                      {t("actions.clear_note")}
+                    </button>
+                  </div>
+                </form>
+              ) : null}
+
+              <ActionMenuButton
                 icon={<TagIcon />}
                 label={t("actions.edit_tags")}
                 loading={loadingAction === "save_tags" || loadingAction === "clear_tags"}
                 onClick={() => {
                   setShowTagEditor((current) => !current);
+                  setShowNoteEditor(false);
                   setTagDraft(entryTags.join(", "));
                 }}
               />
@@ -727,6 +816,16 @@ function TagIcon() {
         d="M10.4 4.2h4.1a1.3 1.3 0 0 1 1.3 1.3v4.1L9.7 15.7a1.4 1.4 0 0 1-2 0l-3.4-3.4a1.4 1.4 0 0 1 0-2l6.1-6.1Z"
       />
       <circle cx="13.4" cy="6.6" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function NoteIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5.2 3.8h7.4l2.2 2.2v10.2H5.2V3.8Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12.6 3.8V6h2.2" />
+      <path strokeLinecap="round" d="M7.7 9.2h4.6M7.7 12h4.6M7.7 14.7h2.7" />
     </svg>
   );
 }

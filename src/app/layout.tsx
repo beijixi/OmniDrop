@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import "@/app/globals.css";
 import { I18nProvider } from "@/components/i18n-provider";
+import { t } from "@/lib/i18n";
 import { getServerI18n } from "@/lib/i18n-server";
 import { getSettings } from "@/lib/settings";
 
@@ -58,6 +59,14 @@ export default async function RootLayout({
                     className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2"
                   />
                   <Link
+                    href="/collections"
+                    aria-label={t(locale, "header.collections")}
+                    className="glass-button inline-flex h-9 items-center justify-center gap-2 rounded-full px-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-[1px] hover:text-slate-950 sm:h-10 sm:px-4"
+                  >
+                    <CollectionsIcon />
+                    <span className="hidden sm:inline">{t(locale, "header.collections")}</span>
+                  </Link>
+                  <Link
                     href="/duplicates"
                     aria-label={messages["header.duplicates"]}
                     className="glass-button inline-flex h-9 items-center justify-center gap-2 rounded-full px-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-[1px] hover:text-slate-950 sm:h-10 sm:px-4"
@@ -105,6 +114,16 @@ function DuplicatesIcon() {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9.25 4.25h6.5a4 4 0 0 1 4 4v6.5" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 10.5h2.75v4.75" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 13.75h1.75" />
+    </svg>
+  );
+}
+
+function CollectionsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="4.5" y="5.25" width="15" height="4.5" rx="1.8" />
+      <rect x="4.5" y="14.25" width="9.5" height="4.5" rx="1.8" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.9 15.3h2.6m-1.3-1.3v2.6" />
     </svg>
   );
 }

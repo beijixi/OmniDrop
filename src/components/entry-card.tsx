@@ -14,6 +14,7 @@ type EntryCardProps = {
   entry: EntryWithRelations & Partial<Pick<TimelineEntry, "duplicateSummary" | "searchMatch">>;
   locale: AppLocale;
   preferPdfInlinePreview?: boolean;
+  publicAssetBasePath?: string | null;
   publicView?: boolean;
   searchQuery?: string;
   shareToken?: string | null;
@@ -24,6 +25,7 @@ export async function EntryCard({
   entry,
   locale,
   preferPdfInlinePreview = true,
+  publicAssetBasePath = null,
   publicView = false,
   searchQuery = "",
   shareToken = null,
@@ -33,8 +35,11 @@ export async function EntryCard({
     entry.senderName === "current-device" || entry.senderName === "当前设备"
       ? t(locale, "entry.local_source")
       : entry.senderName;
-  const assetPath = (assetId: string) =>
-    publicView && shareToken ? `/api/share/${shareToken}/assets/${assetId}` : `/api/v1/assets/${assetId}`;
+  const assetBasePath =
+    publicView
+      ? publicAssetBasePath || (shareToken ? `/api/share/${shareToken}/assets` : "/api/v1/assets")
+      : "/api/v1/assets";
+  const assetPath = (assetId: string) => `${assetBasePath}/${assetId}`;
   const imageAssets = entry.assets.filter((asset) => asset.kind === "IMAGE");
   const nonImageAssets = entry.assets.filter((asset) => asset.kind !== "IMAGE");
   const visibleIp = isIpv4Address(entry.senderIp) ? entry.senderIp : null;
@@ -92,6 +97,7 @@ export async function EntryCard({
                   isFavorite={entry.isFavorite}
                   isPinned={Boolean(entry.pinnedAt)}
                   messageText={entry.message}
+                  note={entry.note}
                   tags={entry.tags.map((item) => item.tag.name)}
                 />
               ) : null}
@@ -227,6 +233,36 @@ export async function EntryCard({
                       >
                         <p className="whitespace-pre-wrap break-words">
                           {renderMessageText(entry.message, align)}
+                        </p>
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {entry.note ? (
+                    <section>
+                      <div
+                        className={cn(
+                          "rounded-[18px] border px-3.5 py-3 sm:px-4",
+                          align === "right"
+                            ? "border-white/15 bg-white/8 text-white/92"
+                            : "border-amber-100/80 bg-amber-50/72 text-slate-700"
+                        )}
+                      >
+                        <p
+                          className={cn(
+                            "text-[11px] font-semibold uppercase tracking-[0.08em]",
+                            align === "right" ? "text-white/70" : "text-amber-700"
+                          )}
+                        >
+                          {t(locale, "entry.note")}
+                        </p>
+                        <p
+                          className={cn(
+                            "mt-2 whitespace-pre-wrap break-words text-sm leading-6",
+                            align === "right" ? "text-white" : "text-slate-700"
+                          )}
+                        >
+                          {entry.note}
                         </p>
                       </div>
                     </section>
@@ -616,6 +652,8 @@ function getSearchSourceLabel(locale: AppLocale, source: EntrySearchSnippetSourc
       return t(locale, "search.source_asset_name");
     case "assetText":
       return t(locale, "search.source_asset_text");
+    case "note":
+      return t(locale, "search.source_note");
     case "sender":
       return t(locale, "search.source_sender");
     default:

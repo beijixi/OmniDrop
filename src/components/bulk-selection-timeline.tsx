@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/components/i18n-provider";
+import type { CollectionSummary } from "@/lib/collections";
 import type { EntryBatchAction } from "@/lib/entries";
 import { cn, normalizeTagList } from "@/lib/utils";
 
@@ -19,6 +20,7 @@ const BulkSelectionContext = createContext<BulkSelectionContextValue | null>(nul
 type BulkSelectionTimelineProps = {
   availableTags?: string[];
   children: ReactNode;
+  collections?: CollectionSummary[];
   entryIds: string[];
 };
 
@@ -54,14 +56,20 @@ const actionLabelKeys: Record<
 export function BulkSelectionTimeline({
   availableTags = [],
   children,
+  collections = [],
   entryIds
 }: BulkSelectionTimelineProps) {
   const router = useRouter();
   const { t } = useI18n();
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [pendingAction, setPendingAction] = useState<EntryBatchAction | "">("");
+  const [pendingAction, setPendingAction] = useState<
+    EntryBatchAction | "add_to_collection" | "create_collection" | ""
+  >("");
+  const [showCollectionForm, setShowCollectionForm] = useState(false);
   const [showTagForm, setShowTagForm] = useState(false);
+  const [collectionTitleDraft, setCollectionTitleDraft] = useState("");
+  const [collectionDescriptionDraft, setCollectionDescriptionDraft] = useState("");
   const [tagDraft, setTagDraft] = useState("");
   const [status, setStatus] = useState("");
   const statusTimeoutRef = useRef<number | null>(null);
@@ -81,7 +89,10 @@ export function BulkSelectionTimeline({
 
   useEffect(() => {
     if (!selectionMode) {
+      setShowCollectionForm(false);
       setShowTagForm(false);
+      setCollectionTitleDraft("");
+      setCollectionDescriptionDraft("");
       setTagDraft("");
     }
   }, [selectionMode]);
@@ -127,7 +138,10 @@ export function BulkSelectionTimeline({
   function exitSelectionMode() {
     setSelectedIds([]);
     setSelectionMode(false);
+    setShowCollectionForm(false);
     setShowTagForm(false);
+    setCollectionTitleDraft("");
+    setCollectionDescriptionDraft("");
     setTagDraft("");
   }
 
@@ -241,6 +255,110 @@ export function BulkSelectionTimeline({
     }
   }
 
+  async function handleAddToCollection(collectionId: string) {
+    if (selectedIds.length === 0) {
+      setTransientStatus(t("actions.batch_empty"));
+      return;
+    }
+
+    setPendingAction("add_to_collection");
+    setStatus("");
+
+    try {
+      const response = await fetch(`/api/v1/collections/${collectionId}/entries`, {
+        body: JSON.stringify({
+          ids: selectedIds
+        }),
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            data?: {
+              addedCount?: number;
+              matchedCount?: number;
+            };
+            error?: {
+              message?: string;
+            };
+          }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.error?.message || t("collections.action_failed"));
+      }
+
+      const matchedCount = payload?.data?.matchedCount || selectedIds.length;
+      setTransientStatus(t("collections.added", { count: matchedCount }));
+      router.refresh();
+    } catch (error) {
+      setTransientStatus(error instanceof Error ? error.message : t("collections.action_failed"));
+    } finally {
+      setPendingAction("");
+    }
+  }
+
+  async function handleCreateCollection(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (selectedIds.length === 0) {
+      setTransientStatus(t("actions.batch_empty"));
+      return;
+    }
+
+    const title = collectionTitleDraft.trim();
+
+    if (!title) {
+      setTransientStatus(t("collections.title_required"));
+      return;
+    }
+
+    setPendingAction("create_collection");
+    setStatus("");
+
+    try {
+      const response = await fetch("/api/v1/collections", {
+        body: JSON.stringify({
+          description: collectionDescriptionDraft,
+          entryIds: selectedIds,
+          title
+        }),
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            data?: {
+              collection?: {
+                title?: string;
+              };
+            };
+            error?: {
+              message?: string;
+            };
+          }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.error?.message || t("collections.action_failed"));
+      }
+
+      setCollectionTitleDraft("");
+      setCollectionDescriptionDraft("");
+      setShowCollectionForm(false);
+      setTransientStatus(t("collections.created", { title: payload?.data?.collection?.title || title }));
+      router.refresh();
+    } catch (error) {
+      setTransientStatus(error instanceof Error ? error.message : t("collections.action_failed"));
+    } finally {
+      setPendingAction("");
+    }
+  }
+
   return (
     <BulkSelectionContext.Provider
       value={{
@@ -306,7 +424,22 @@ export function BulkSelectionTimeline({
                 <button
                   type="button"
                   disabled={pendingAction !== "" || selectedCount === 0}
-                  onClick={() => setShowTagForm((current) => !current)}
+                  onClick={() => {
+                    setShowCollectionForm((current) => !current);
+                    setShowTagForm(false);
+                  }}
+                  className="shrink-0 rounded-full border border-sky-200/80 bg-sky-50/88 px-3 py-1.5 text-sm font-medium text-sky-700 transition hover:border-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {t("actions.batch_add_to_collection")}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={pendingAction !== "" || selectedCount === 0}
+                  onClick={() => {
+                    setShowTagForm((current) => !current);
+                    setShowCollectionForm(false);
+                  }}
                   className="shrink-0 rounded-full border border-emerald-200/80 bg-emerald-50/88 px-3 py-1.5 text-sm font-medium text-emerald-700 transition hover:border-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {t("actions.batch_add_tags")}
@@ -329,6 +462,77 @@ export function BulkSelectionTimeline({
                   </button>
                 ))}
               </div>
+
+              {showCollectionForm ? (
+                <form
+                  className="rounded-[18px] border border-white/80 bg-white/82 p-3 shadow-[0_10px_22px_rgba(15,23,42,0.04)]"
+                  onSubmit={(event) => void handleCreateCollection(event)}
+                >
+                  {collections.length > 0 ? (
+                    <div className="mb-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        {t("collections.existing")}
+                      </p>
+                      <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-1">
+                        {collections.slice(0, 12).map((collection) => (
+                          <button
+                            key={`bulk-collection-${collection.id}`}
+                            type="button"
+                            disabled={pendingAction !== ""}
+                            onClick={() => void handleAddToCollection(collection.id)}
+                            className="shrink-0 rounded-full border border-sky-100/90 bg-sky-50/80 px-3 py-1.5 text-xs font-semibold text-sky-700 transition hover:border-sky-200 disabled:cursor-wait disabled:opacity-70"
+                          >
+                            {collection.title} · {collection.entryCount}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mb-3 text-sm leading-6 text-slate-500">
+                      {t("collections.empty_select_hint")}
+                    </p>
+                  )}
+
+                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
+                    <input
+                      value={collectionTitleDraft}
+                      onChange={(event) => setCollectionTitleDraft(event.target.value)}
+                      placeholder={t("collections.title_placeholder")}
+                      className="h-11 rounded-[16px] border border-slate-200/80 bg-white/92 px-4 text-sm text-slate-800 outline-none transition focus:border-sky-300 focus:ring-2 focus:ring-sky-200"
+                    />
+                    <input
+                      value={collectionDescriptionDraft}
+                      onChange={(event) => setCollectionDescriptionDraft(event.target.value)}
+                      placeholder={t("collections.description_placeholder")}
+                      className="h-11 rounded-[16px] border border-slate-200/80 bg-white/92 px-4 text-sm text-slate-800 outline-none transition focus:border-sky-300 focus:ring-2 focus:ring-sky-200"
+                    />
+                  </div>
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="submit"
+                      disabled={pendingAction !== ""}
+                      className="rounded-full bg-[linear-gradient(135deg,#0f172a,#0369a1_58%,#38bdf8)] px-3 py-1.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(14,165,233,0.18)] transition disabled:cursor-wait disabled:opacity-70"
+                    >
+                      {pendingAction === "create_collection"
+                        ? t("actions.processing")
+                        : t("collections.create_with_selection")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pendingAction !== ""}
+                      onClick={() => {
+                        setShowCollectionForm(false);
+                        setCollectionTitleDraft("");
+                        setCollectionDescriptionDraft("");
+                      }}
+                      className="rounded-full border border-slate-200/80 bg-white/92 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 disabled:cursor-wait disabled:opacity-70"
+                    >
+                      {t("toolbar.clear")}
+                    </button>
+                  </div>
+                </form>
+              ) : null}
 
               {showTagForm ? (
                 <form

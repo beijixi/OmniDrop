@@ -69,6 +69,7 @@ export async function PATCH(request: Request, { params }: EntryRouteProps) {
     const payload = (await request.json()) as {
       archived?: boolean;
       favorite?: boolean;
+      note?: string | null;
       pinned?: boolean;
       tags?: string[];
     };
@@ -76,12 +77,13 @@ export async function PATCH(request: Request, { params }: EntryRouteProps) {
     if (
       typeof payload.archived !== "boolean" &&
       typeof payload.favorite !== "boolean" &&
+      payload.note === undefined &&
       typeof payload.pinned !== "boolean" &&
       !Array.isArray(payload.tags)
     ) {
       return apiError({
         code: "EMPTY_ENTRY_UPDATE",
-        message: "至少要更新一个状态字段或标签。",
+        message: "至少要更新一个状态字段、备注或标签。",
         status: 400
       });
     }
@@ -91,11 +93,13 @@ export async function PATCH(request: Request, { params }: EntryRouteProps) {
     if (
       typeof payload.archived === "boolean" ||
       typeof payload.favorite === "boolean" ||
+      payload.note !== undefined ||
       typeof payload.pinned === "boolean"
     ) {
       currentEntry = await updateEntryState(params.id, {
         archived: payload.archived,
         favorite: payload.favorite,
+        note: payload.note,
         pinned: payload.pinned
       });
     }
@@ -107,7 +111,7 @@ export async function PATCH(request: Request, { params }: EntryRouteProps) {
     if (!currentEntry) {
       return apiError({
         code: "EMPTY_ENTRY_UPDATE",
-        message: "至少要更新一个状态字段或标签。",
+        message: "至少要更新一个状态字段、备注或标签。",
         status: 400
       });
     }

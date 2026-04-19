@@ -18,6 +18,7 @@ export const localeOptions: Array<{ code: AppLocale; label: string }> = [
 ];
 
 export type MessageKey =
+  | "header.collections"
   | "header.settings"
   | "header.language"
   | "header.duplicates"
@@ -71,12 +72,14 @@ export type MessageKey =
   | "entry.archived"
   | "entry.pinned"
   | "entry.duplicate"
+  | "entry.note"
   | "entry.share_revoked"
   | "entry.open"
   | "entry.download"
   | "entry.open_new_window"
   | "search.matches"
   | "search.source_message"
+  | "search.source_note"
   | "search.source_asset_name"
   | "search.source_asset_text"
   | "search.source_sender"
@@ -142,6 +145,14 @@ export type MessageKey =
   | "actions.batch_archived"
   | "actions.batch_unarchived"
   | "actions.batch_deleted"
+  | "actions.batch_add_to_collection"
+  | "actions.edit_note"
+  | "actions.note_placeholder"
+  | "actions.save_note"
+  | "actions.clear_note"
+  | "actions.note_saved"
+  | "actions.note_cleared"
+  | "actions.note_failed"
   | "actions.batch_add_tags"
   | "actions.batch_tags_added"
   | "actions.edit_tags"
@@ -172,9 +183,41 @@ export type MessageKey =
   | "settings.saved"
   | "share.title"
   | "share.description"
+  | "share.collection_title"
+  | "share.collection_description"
   | "not_found.title"
   | "not_found.description"
   | "not_found.back_home"
+  | "collections.eyebrow"
+  | "collections.title"
+  | "collections.subtitle"
+  | "collections.create_title"
+  | "collections.create_description"
+  | "collections.create"
+  | "collections.create_with_selection"
+  | "collections.edit"
+  | "collections.updated"
+  | "collections.existing"
+  | "collections.title_placeholder"
+  | "collections.description_placeholder"
+  | "collections.title_required"
+  | "collections.action_failed"
+  | "collections.added"
+  | "collections.created"
+  | "collections.no_description"
+  | "collections.shared"
+  | "collections.entry_count"
+  | "collections.empty_title"
+  | "collections.empty_description"
+  | "collections.empty_select_hint"
+  | "collections.empty_items_title"
+  | "collections.empty_items_description"
+  | "collections.back_to_all"
+  | "collections.move_up"
+  | "collections.move_down"
+  | "collections.remove_entry"
+  | "collections.confirm_remove_entry"
+  | "collections.confirm_delete"
   | "duplicates.eyebrow"
   | "duplicates.title"
   | "duplicates.subtitle"
@@ -212,10 +255,11 @@ export type MessageKey =
   | "duplicates.recommended_mark"
   | "duplicates.open_home";
 
-type Messages = Record<MessageKey, string>;
+type Messages = Partial<Record<MessageKey, string>>;
 
 const messagesByLocale: Record<AppLocale, Messages> = {
   "zh-CN": {
+    "header.collections": "合集",
     "header.settings": "设置",
     "header.language": "语言",
     "header.duplicates": "重复组",
@@ -269,12 +313,14 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "entry.archived": "已归档",
     "entry.pinned": "已置顶",
     "entry.duplicate": "重复 {count} 条",
+    "entry.note": "备注",
     "entry.share_revoked": "分享已撤销",
     "entry.open": "打开",
     "entry.download": "下载",
     "entry.open_new_window": "新窗口打开",
     "search.matches": "命中来源",
     "search.source_message": "正文",
+    "search.source_note": "备注",
     "search.source_asset_name": "文件名",
     "search.source_asset_text": "文件内容",
     "search.source_sender": "发送来源",
@@ -340,6 +386,14 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.batch_archived": "已归档 {count} 条内容",
     "actions.batch_unarchived": "已取消归档 {count} 条内容",
     "actions.batch_deleted": "已删除 {count} 条内容",
+    "actions.batch_add_to_collection": "加入合集",
+    "actions.edit_note": "编辑备注",
+    "actions.note_placeholder": "补一句说明，记录为什么留下它",
+    "actions.save_note": "保存备注",
+    "actions.clear_note": "清空备注",
+    "actions.note_saved": "备注已保存",
+    "actions.note_cleared": "备注已清空",
+    "actions.note_failed": "备注更新失败",
     "actions.batch_add_tags": "批量加标签",
     "actions.batch_tags_added": "已为 {count} 条内容应用标签",
     "actions.edit_tags": "编辑标签",
@@ -406,11 +460,44 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "settings.saved": "设置已保存",
     "share.title": "{appName} 分享内容",
     "share.description": "这是一个公开分享视图，内容保留原始发送来源和时间。",
+    "share.collection_title": "{appName} 合集分享 · {title}",
+    "share.collection_description": "这是一个公开合集视图，保留了原始发送来源和时间顺序。",
     "not_found.title": "内容不存在",
     "not_found.description": "这个分享链接可能已经失效，或者对应内容已被移除。",
-    "not_found.back_home": "回到首页"
+    "not_found.back_home": "回到首页",
+    "collections.eyebrow": "Collections",
+    "collections.title": "合集",
+    "collections.subtitle": "把分散的内容整理成一个主题板，适合沉淀项目资料、旅行清单、待发内容和灵感板。",
+    "collections.create_title": "新建合集",
+    "collections.create_description": "先起个标题和描述，后面可以继续往里加内容，也可以直接从时间流多选加入。",
+    "collections.create": "创建合集",
+    "collections.create_with_selection": "用已选内容创建合集",
+    "collections.edit": "编辑合集",
+    "collections.updated": "合集已更新",
+    "collections.existing": "加入现有合集",
+    "collections.title_placeholder": "合集标题",
+    "collections.description_placeholder": "合集描述（可选）",
+    "collections.title_required": "请先填写合集标题。",
+    "collections.action_failed": "合集操作失败",
+    "collections.added": "已将 {count} 条内容加入合集",
+    "collections.created": "已创建合集「{title}」",
+    "collections.no_description": "暂时还没有描述。",
+    "collections.shared": "已分享",
+    "collections.entry_count": "{count} 条内容",
+    "collections.empty_title": "现在还没有合集",
+    "collections.empty_description": "你可以先新建一个合集，或者回到时间流多选内容后直接加入合集。",
+    "collections.empty_select_hint": "还没有现成合集，可以直接创建一个新合集并把当前选择放进去。",
+    "collections.empty_items_title": "这个合集里还没有内容",
+    "collections.empty_items_description": "回到时间流，多选内容后用“加入合集”把它们收进来。",
+    "collections.back_to_all": "回到合集列表",
+    "collections.move_up": "上移",
+    "collections.move_down": "下移",
+    "collections.remove_entry": "移出合集",
+    "collections.confirm_remove_entry": "确定把这条内容移出合集吗？原始内容不会被删除。",
+    "collections.confirm_delete": "确定删除这个合集吗？合集中的内容本身不会被删除。"
   },
   en: {
+    "header.collections": "Collections",
     "header.settings": "Settings",
     "header.language": "Language",
     "header.duplicates": "Duplicates",
@@ -464,12 +551,14 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "entry.archived": "Archived",
     "entry.pinned": "Pinned",
     "entry.duplicate": "{count} duplicates",
+    "entry.note": "Note",
     "entry.share_revoked": "Share revoked",
     "entry.open": "Open",
     "entry.download": "Download",
     "entry.open_new_window": "Open in new window",
     "search.matches": "Matches",
     "search.source_message": "Message",
+    "search.source_note": "Note",
     "search.source_asset_name": "File name",
     "search.source_asset_text": "File text",
     "search.source_sender": "Sender",
@@ -535,6 +624,14 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.batch_archived": "Archived {count} items",
     "actions.batch_unarchived": "Moved {count} items back to active",
     "actions.batch_deleted": "Deleted {count} items",
+    "actions.batch_add_to_collection": "Add to collection",
+    "actions.edit_note": "Edit note",
+    "actions.note_placeholder": "Add a short reminder about why this item matters",
+    "actions.save_note": "Save note",
+    "actions.clear_note": "Clear note",
+    "actions.note_saved": "Note saved",
+    "actions.note_cleared": "Note cleared",
+    "actions.note_failed": "Could not update the note",
     "actions.batch_add_tags": "Add tags",
     "actions.batch_tags_added": "Applied tags to {count} items",
     "actions.edit_tags": "Edit tags",
@@ -601,9 +698,41 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "settings.saved": "Settings saved",
     "share.title": "{appName} shared item",
     "share.description": "This is a public share view and keeps the original sender and timestamp.",
+    "share.collection_title": "{appName} shared collection · {title}",
+    "share.collection_description": "This is a public collection view that keeps the original sender and timeline order.",
     "not_found.title": "Content not found",
     "not_found.description": "This share link may have expired or the original item was removed.",
-    "not_found.back_home": "Back to home"
+    "not_found.back_home": "Back to home",
+    "collections.eyebrow": "Collections",
+    "collections.title": "Collections",
+    "collections.subtitle": "Group scattered items into reusable boards for project materials, trip lists, pending shares, and inspiration stacks.",
+    "collections.create_title": "Create collection",
+    "collections.create_description": "Start with a title and description, then keep adding items later or add them directly from multi-select in the stream.",
+    "collections.create": "Create collection",
+    "collections.create_with_selection": "Create from selected items",
+    "collections.edit": "Edit collection",
+    "collections.updated": "Collection updated",
+    "collections.existing": "Add to existing collection",
+    "collections.title_placeholder": "Collection title",
+    "collections.description_placeholder": "Collection description (optional)",
+    "collections.title_required": "Please enter a collection title first.",
+    "collections.action_failed": "Collection action failed",
+    "collections.added": "Added {count} items to the collection",
+    "collections.created": "Created collection \"{title}\"",
+    "collections.no_description": "No description yet.",
+    "collections.shared": "Shared",
+    "collections.entry_count": "{count} items",
+    "collections.empty_title": "No collections yet",
+    "collections.empty_description": "Create one here, or head back to the stream and add selected items into a new collection.",
+    "collections.empty_select_hint": "There are no collections yet. Create one here and drop the current selection into it.",
+    "collections.empty_items_title": "This collection is still empty",
+    "collections.empty_items_description": "Go back to the stream and use multi-select to add items into it.",
+    "collections.back_to_all": "Back to all collections",
+    "collections.move_up": "Move up",
+    "collections.move_down": "Move down",
+    "collections.remove_entry": "Remove from collection",
+    "collections.confirm_remove_entry": "Remove this item from the collection? The original item will stay in your stream.",
+    "collections.confirm_delete": "Delete this collection? The items inside it will stay in your stream."
   },
   ja: {
     "header.settings": "設定",
@@ -1563,7 +1692,10 @@ export function t(
   key: MessageKey,
   params?: Record<string, string | number>
 ): string {
-  return interpolate(getMessages(locale)[key] || messagesByLocale["zh-CN"][key], params);
+  return interpolate(
+    getMessages(locale)[key] || messagesByLocale.en[key] || messagesByLocale["zh-CN"][key] || key,
+    params
+  );
 }
 
 export function interpolate(

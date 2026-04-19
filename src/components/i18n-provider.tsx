@@ -10,6 +10,7 @@ import {
   interpolate,
   localeCookieName,
   localeOptions,
+  resolveLocale,
   type AppLocale,
   type MessageKey
 } from "@/lib/i18n";
@@ -42,7 +43,8 @@ export function I18nProvider({ children, locale }: I18nProviderProps) {
   }
 
   function translate(key: MessageKey, params?: Record<string, string | number>) {
-    return interpolate(messages[key], params);
+    const fallbackMessages = getMessages(resolveLocale("en"));
+    return interpolate(messages[key] || fallbackMessages[key] || key, params);
   }
 
   return (

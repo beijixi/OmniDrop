@@ -1,3 +1,4 @@
+import type { CollectionSummary, CollectionWithEntries } from "@/lib/collections";
 import type { AppSettings } from "@/lib/settings";
 import type { EntryWithRelations } from "@/lib/entries";
 
@@ -34,6 +35,7 @@ export function serializeEntry(
     id: entry.id,
     type: entry.type,
     message: entry.message,
+    note: entry.note,
     isFavorite: entry.isFavorite,
     archivedAt: entry.archivedAt?.toISOString() || null,
     pinnedAt: entry.pinnedAt?.toISOString() || null,
@@ -55,5 +57,56 @@ export function serializeEntry(
       url: `${assetBasePath}/${asset.id}`
     })),
     share
+  };
+}
+
+export function serializeCollectionSummary(
+  collection: CollectionSummary,
+  _input?: {
+    shareBaseUrl?: string;
+  }
+) {
+  return {
+    description: collection.description,
+    entryCount: collection.entryCount,
+    hasActiveShare: collection.hasActiveShare,
+    id: collection.id,
+    title: collection.title,
+    updatedAt: collection.updatedAt,
+    url: `/collections/${collection.id}`
+  };
+}
+
+export function serializeCollection(
+  collection: CollectionWithEntries,
+  input: {
+    assetBasePath?: string;
+    shareBaseUrl: string;
+  }
+) {
+  const share =
+    collection.shareLink
+      ? {
+          revokedAt: collection.shareLink.revokedAt?.toISOString() || null,
+          token: collection.shareLink.token,
+          url: collection.shareLink.revokedAt
+            ? null
+            : `${trimTrailingSlash(input.shareBaseUrl)}/share/collections/${collection.shareLink.token}`
+        }
+      : null;
+
+  return {
+    id: collection.id,
+    title: collection.title,
+    description: collection.description,
+    createdAt: collection.createdAt.toISOString(),
+    updatedAt: collection.updatedAt.toISOString(),
+    share,
+    entries: collection.entries.map((item) => ({
+      createdAt: item.createdAt.toISOString(),
+      entry: serializeEntry(item.entry, input),
+      entryId: item.entryId,
+      position: item.position
+    }))
   };
 }

@@ -17,6 +17,7 @@ type ShareSettingsInput = {
 };
 
 export function buildShareUrlSet(input: {
+  path?: string;
   request: Request;
   settings: ShareSettingsInput;
   token: string;
@@ -31,8 +32,9 @@ export function buildShareUrlSet(input: {
   const internalBaseUrl =
     configuredInternalBaseUrl ||
     (currentOrigin && isInternalOrigin(currentOrigin) ? currentOrigin : null);
-  const publicUrl = publicBaseUrl ? buildShareUrl(publicBaseUrl, input.token) : null;
-  const internalUrl = internalBaseUrl ? buildShareUrl(internalBaseUrl, input.token) : null;
+  const sharePath = normalizeSharePath(input.path || `/share/${input.token}`);
+  const publicUrl = publicBaseUrl ? buildShareUrl(publicBaseUrl, sharePath) : null;
+  const internalUrl = internalBaseUrl ? buildShareUrl(internalBaseUrl, sharePath) : null;
   const preferredMode = resolvePreferredMode({
     currentOrigin,
     headers: input.request.headers,
@@ -142,8 +144,18 @@ function isSameOrigin(left: string, right: string): boolean {
   }
 }
 
-function buildShareUrl(baseUrl: string, token: string): string {
-  return `${trimTrailingSlash(baseUrl)}/share/${token}`;
+function buildShareUrl(baseUrl: string, sharePath: string): string {
+  return `${trimTrailingSlash(baseUrl)}${sharePath}`;
+}
+
+function normalizeSharePath(value: string): string {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "/";
+  }
+
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
 }
 
 function sanitizeConfiguredBaseUrl(value: string | null | undefined): string | null {

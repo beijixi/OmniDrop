@@ -2,6 +2,7 @@ import { BulkSelectionTimeline, SelectableEntryShell } from "@/components/bulk-s
 import { Composer } from "@/components/composer";
 import { EntryCard } from "@/components/entry-card";
 import { TimelineToolbar } from "@/components/timeline-toolbar";
+import { getCollectionSummaries } from "@/lib/collections";
 import { normalizeEntryView } from "@/lib/entry-views";
 import { getEntries } from "@/lib/entries";
 import { normalizeEntryTypeOption } from "@/lib/file-types";
@@ -35,7 +36,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const { locale } = getServerI18n();
   const viewerIp = resolveViewerIpv4FromHeaders(requestHeaders);
   const preferPdfInlinePreview = !isMobileUserAgent(requestHeaders.get("user-agent"));
-  const [entries, savedViews, availableTags] = await Promise.all([
+  const [entries, savedViews, availableTags, collections] = await Promise.all([
     getEntries({
       duplicatesOnly,
       q: currentQuery,
@@ -44,7 +45,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       view: currentView
     }),
     getSavedViews(),
-    listTagSummaries()
+    listTagSummaries(),
+    getCollectionSummaries()
   ]);
 
   return (
@@ -62,7 +64,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       <div className="relative">
         {entries.length > 0 ? (
-          <BulkSelectionTimeline availableTags={availableTags.map((tag) => tag.name)} entryIds={entries.map((entry) => entry.id)}>
+          <BulkSelectionTimeline
+            availableTags={availableTags.map((tag) => tag.name)}
+            collections={collections}
+            entryIds={entries.map((entry) => entry.id)}
+          >
             <div className="space-y-5 pb-24 sm:space-y-6 sm:pb-32">
               {entries.map((entry) => (
                 <SelectableEntryShell key={entry.id} entryId={entry.id}>

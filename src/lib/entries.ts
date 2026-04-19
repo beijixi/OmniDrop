@@ -59,7 +59,7 @@ export type EntryPageResult = {
   nextCursor: string | null;
 };
 
-export type EntrySearchSnippetSource = "assetName" | "assetText" | "message" | "sender";
+export type EntrySearchSnippetSource = "assetName" | "assetText" | "message" | "note" | "sender";
 
 export type EntrySearchSnippet = {
   assetName?: string;
@@ -345,6 +345,7 @@ export async function updateEntryState(
   input: {
     archived?: boolean;
     favorite?: boolean;
+    note?: string | null;
     pinned?: boolean;
   }
 ) {
@@ -375,6 +376,11 @@ export async function updateEntryState(
 
   if (typeof input.pinned === "boolean") {
     data.pinnedAt = input.pinned ? existing.pinnedAt || new Date() : null;
+  }
+
+  if (input.note !== undefined) {
+    const normalizedNote = normalizeMessageText(input.note || "");
+    data.note = normalizedNote ? normalizedNote.slice(0, 2000) : null;
   }
 
   if (Object.keys(data).length === 0) {
@@ -988,6 +994,12 @@ function buildEntryWhereParts(filters: EntryFilters): Prisma.EntryWhereInput[] {
           }
         },
         {
+          note: {
+            contains: query,
+            mode: "insensitive"
+          }
+        },
+        {
           assets: {
             some: {
               OR: [
@@ -1500,6 +1512,16 @@ function buildEntrySearchMatch(entry: EntryWithRelations, query?: string): Entry
       : null
   );
 
+  const noteSnippet = entry.note ? createSearchSnippet(entry.note, normalizedQuery) : null;
+  pushSnippet(
+    noteSnippet
+      ? {
+          source: "note",
+          text: noteSnippet
+        }
+      : null
+  );
+
   const senderSnippet = [entry.senderName, entry.senderHost, entry.senderIp].filter(Boolean).join(" · ");
   const matchedSenderSnippet = senderSnippet ? createSearchSnippet(senderSnippet, normalizedQuery) : null;
   pushSnippet(
@@ -1581,6 +1603,8 @@ function getSourceRelevance(source: EntrySearchSnippetSource) {
   switch (source) {
     case "message":
       return 40;
+    case "note":
+      return 35;
     case "assetName":
       return 30;
     case "assetText":

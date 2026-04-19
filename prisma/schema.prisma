@@ -36,6 +36,8 @@ model Entry {
   senderIp   String?
   senderHost String?
   message   String?     @db.Text
+  messageFingerprint String? @db.VarChar(64)
+  canonicalUrl String?   @db.VarChar(2048)
   isFavorite Boolean    @default(false)
   archivedAt DateTime?
   createdAt DateTime    @default(now())
@@ -49,6 +51,8 @@ model Entry {
   @@index([senderName, createdAt(sort: Desc)])
   @@index([isFavorite, createdAt(sort: Desc)])
   @@index([archivedAt, createdAt(sort: Desc)])
+  @@index([messageFingerprint, createdAt(sort: Desc)])
+  @@index([canonicalUrl, createdAt(sort: Desc)])
 }
 
 model Asset {
@@ -62,12 +66,27 @@ model Asset {
   relativePath  String
   mimeType      String
   size          Int
+  contentHash   String?   @db.VarChar(64)
   searchText    String?   @db.Text
   searchTextIndexedAt DateTime?
   createdAt     DateTime  @default(now())
 
   @@index([entryId, createdAt])
   @@index([storageDriver, createdAt])
+  @@index([contentHash, createdAt])
+}
+
+model SavedView {
+  id        String    @id @default(cuid())
+  name      String    @db.VarChar(64)
+  query     String?   @db.Text
+  entryType EntryType?
+  entryView String    @default("ACTIVE") @db.VarChar(24)
+  duplicatesOnly Boolean @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([updatedAt])
 }
 
 model Tag {

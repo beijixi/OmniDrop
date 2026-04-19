@@ -62,6 +62,24 @@ export function apiErrorFromUnknown(
           message: "分页游标无效。",
           status: 400
         });
+      case "EMPTY_SAVED_VIEW":
+        return apiError({
+          code: "EMPTY_SAVED_VIEW",
+          message: "请先选择搜索、类型、视图或重复项条件后再保存。",
+          status: 400
+        });
+      case "EMPTY_SAVED_VIEW_NAME":
+        return apiError({
+          code: "EMPTY_SAVED_VIEW_NAME",
+          message: "请填写筛选视图名称。",
+          status: 400
+        });
+      case "SAVED_VIEW_NOT_FOUND":
+        return apiError({
+          code: "SAVED_VIEW_NOT_FOUND",
+          message: "筛选视图不存在。",
+          status: 404
+        });
       default:
         return apiError({
           code: fallback.code,

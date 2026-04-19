@@ -6,15 +6,16 @@ import { EntryActions } from "@/components/entry-actions";
 import { getAssetPreview } from "@/lib/asset-previews";
 import type { AppLocale } from "@/lib/i18n";
 import { getFileVisual } from "@/lib/file-types";
-import type { EntryWithRelations } from "@/lib/entries";
+import type { EntrySearchSnippetSource, EntryWithRelations, TimelineEntry } from "@/lib/entries";
 import { t } from "@/lib/i18n";
 import { cn, formatBytes, formatDateTime, isIpv4Address } from "@/lib/utils";
 
 type EntryCardProps = {
-  entry: EntryWithRelations;
+  entry: EntryWithRelations & Partial<Pick<TimelineEntry, "duplicateSummary" | "searchMatch">>;
   locale: AppLocale;
   preferPdfInlinePreview?: boolean;
   publicView?: boolean;
+  searchQuery?: string;
   shareToken?: string | null;
   viewerIp?: string | null;
 };
@@ -24,6 +25,7 @@ export async function EntryCard({
   locale,
   preferPdfInlinePreview = true,
   publicView = false,
+  searchQuery = "",
   shareToken = null,
   viewerIp = null
 }: EntryCardProps) {
@@ -101,6 +103,12 @@ export async function EntryCard({
                   <span className="font-semibold text-slate-700">{displaySenderName}</span>
                   {entry.isFavorite ? <EntryStateBadge label={t(locale, "entry.favorite")} tone="amber" /> : null}
                   {entry.archivedAt ? <EntryStateBadge label={t(locale, "entry.archived")} tone="slate" /> : null}
+                  {entry.duplicateSummary ? (
+                    <EntryStateBadge
+                      label={t(locale, "entry.duplicate", { count: entry.duplicateSummary.count })}
+                      tone="rose"
+                    />
+                  ) : null}
                   <span>{formatDateTime(entry.createdAt, locale)}</span>
                 </div>
                 <div className="mt-0.5 truncate text-[11px] text-slate-400 sm:text-xs">
@@ -123,6 +131,71 @@ export async function EntryCard({
                 <div className={align === "right" ? "message-tint-right" : "message-tint-left"} />
 
                 <div className="space-y-3 px-3.5 py-3 sm:space-y-4 sm:px-4 sm:py-4">
+                  {entry.searchMatch && searchQuery ? (
+                    <section
+                      className={cn(
+                        "rounded-[18px] border px-3.5 py-3 sm:px-4",
+                        align === "right"
+                          ? "border-white/15 bg-white/8 text-white/90"
+                          : "border-cyan-100/80 bg-cyan-50/70 text-slate-700"
+                      )}
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={cn(
+                            "text-[11px] font-semibold uppercase tracking-[0.08em]",
+                            align === "right" ? "text-white/70" : "text-cyan-700"
+                          )}
+                        >
+                          {t(locale, "search.matches")}
+                        </span>
+                        {entry.searchMatch.sources.map((source) => (
+                          <span
+                            key={`${entry.id}-${source}`}
+                            className={cn(
+                              "rounded-full border px-2 py-1 text-[10px] font-semibold",
+                              align === "right"
+                                ? "border-white/15 bg-white/8 text-white/80"
+                                : "border-white/80 bg-white/85 text-slate-600"
+                            )}
+                          >
+                            {getSearchSourceLabel(locale, source)}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="mt-3 space-y-2">
+                        {entry.searchMatch.snippets.map((snippet, index) => (
+                          <div
+                            key={`${entry.id}-snippet-${index}`}
+                            className={cn(
+                              "rounded-[16px] px-3 py-2.5",
+                              align === "right" ? "bg-white/8" : "bg-white/85"
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "mb-1 text-[11px] font-medium",
+                                align === "right" ? "text-white/70" : "text-slate-500"
+                              )}
+                            >
+                              {getSearchSourceLabel(locale, snippet.source)}
+                              {snippet.assetName ? ` · ${snippet.assetName}` : ""}
+                            </div>
+                            <p
+                              className={cn(
+                                "whitespace-pre-wrap break-words text-sm leading-6",
+                                align === "right" ? "text-white" : "text-slate-700"
+                              )}
+                            >
+                              {renderHighlightedText(snippet.text, searchQuery, align)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
+
                   {entry.message ? (
                     <section>
                       <div
@@ -496,7 +569,7 @@ function EntryStateBadge({
   tone
 }: {
   label: string;
-  tone: "amber" | "slate";
+  tone: "amber" | "rose" | "slate";
 }) {
   return (
     <span
@@ -504,12 +577,72 @@ function EntryStateBadge({
         "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.04em]",
         tone === "amber"
           ? "border-amber-200/80 bg-amber-50/90 text-amber-700"
+          : tone === "rose"
+            ? "border-rose-200/80 bg-rose-50/90 text-rose-700"
           : "border-slate-200/80 bg-white/85 text-slate-500"
       )}
     >
       {label}
     </span>
   );
+}
+
+function getSearchSourceLabel(locale: AppLocale, source: EntrySearchSnippetSource) {
+  switch (source) {
+    case "assetName":
+      return t(locale, "search.source_asset_name");
+    case "assetText":
+      return t(locale, "search.source_asset_text");
+    case "sender":
+      return t(locale, "search.source_sender");
+    default:
+      return t(locale, "search.source_message");
+  }
+}
+
+function renderHighlightedText(
+  text: string,
+  query: string,
+  align: "left" | "right"
+): ReactNode {
+  const normalizedQuery = query.trim();
+
+  if (!normalizedQuery) {
+    return text;
+  }
+
+  const lowerText = text.toLocaleLowerCase();
+  const lowerQuery = normalizedQuery.toLocaleLowerCase();
+  const nodes: ReactNode[] = [];
+  let cursor = 0;
+  let matchIndex = lowerText.indexOf(lowerQuery);
+
+  while (matchIndex !== -1) {
+    if (matchIndex > cursor) {
+      nodes.push(text.slice(cursor, matchIndex));
+    }
+
+    nodes.push(
+      <mark
+        key={`highlight-${matchIndex}`}
+        className={cn(
+          "rounded px-1 py-0.5",
+          align === "right" ? "bg-white/20 text-white" : "bg-amber-100 text-amber-900"
+        )}
+      >
+        {text.slice(matchIndex, matchIndex + normalizedQuery.length)}
+      </mark>
+    );
+
+    cursor = matchIndex + normalizedQuery.length;
+    matchIndex = lowerText.indexOf(lowerQuery, cursor);
+  }
+
+  if (cursor < text.length) {
+    nodes.push(text.slice(cursor));
+  }
+
+  return nodes;
 }
 
 function FileVisualBadge({ visual }: FileVisualBadgeProps) {

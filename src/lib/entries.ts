@@ -1,7 +1,13 @@
 import { randomBytes } from "node:crypto";
 
-import { EntryType, Prisma } from "@prisma/client";
+import { Prisma, EntryType } from "@prisma/client";
 
+import {
+  buildMessageFingerprint,
+  extractCanonicalUrlFromMessage,
+  type DuplicateKind,
+  type EntryDuplicateSummary
+} from "@/lib/dedupe";
 import { normalizeEntryView } from "@/lib/entry-views";
 import { prisma } from "@/lib/prisma";
 import { resolveEntryType } from "@/lib/file-types";
@@ -26,6 +32,7 @@ export type EntryWithRelations = Prisma.EntryGetPayload<{
 }>;
 
 export type EntryFilters = {
+  duplicatesOnly?: boolean;
   q?: string;
   type?: string;
   view?: string;
@@ -42,20 +49,47 @@ export type EntryPageResult = {
   nextCursor: string | null;
 };
 
+export type EntrySearchSnippetSource = "assetName" | "assetText" | "message" | "sender";
+
+export type EntrySearchSnippet = {
+  assetName?: string;
+  source: EntrySearchSnippetSource;
+  text: string;
+};
+
+export type EntrySearchMatch = {
+  sources: EntrySearchSnippetSource[];
+  snippets: EntrySearchSnippet[];
+} | null;
+
+export type TimelineEntry = EntryWithRelations & {
+  duplicateSummary: EntryDuplicateSummary | null;
+  searchMatch: EntrySearchMatch;
+};
+
 type EntryCursor = {
   createdAt: Date;
   id: string;
 };
 
-export async function getEntries(filters: EntryFilters): Promise<EntryWithRelations[]> {
+export async function getEntries(filters: EntryFilters): Promise<TimelineEntry[]> {
   const whereParts = buildEntryWhereParts(filters);
-
-  return prisma.entry.findMany({
+  const rows = await prisma.entry.findMany({
     where: whereParts.length ? { AND: whereParts } : undefined,
     include: entryInclude,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: 100
+    take: filters.duplicatesOnly ? 180 : 100
   });
+  const duplicateSummaries = await buildDuplicateSummaryMap(rows);
+  const entries = rows.map((entry) => ({
+    ...entry,
+    duplicateSummary: duplicateSummaries.get(entry.id) || null,
+    searchMatch: buildEntrySearchMatch(entry, filters.q)
+  }));
+
+  return filters.duplicatesOnly
+    ? entries.filter((entry) => Boolean(entry.duplicateSummary && entry.duplicateSummary.count > 1))
+    : entries;
 }
 
 export async function listEntriesPage(filters: EntryPageFilters): Promise<EntryPageResult> {
@@ -144,7 +178,9 @@ export async function createEntriesBatch(input: {
       if (message) {
         const entry = await tx.entry.create({
           data: {
+            canonicalUrl: extractCanonicalUrlFromMessage(message),
             message,
+            messageFingerprint: buildMessageFingerprint(message),
             senderHost,
             senderIp,
             senderName,
@@ -164,6 +200,7 @@ export async function createEntriesBatch(input: {
             type: resolveEntryType([upload.kind]),
             assets: {
               create: {
+                contentHash: upload.contentHash,
                 kind: upload.kind,
                 mimeType: upload.mimeType,
                 originalName: upload.originalName,
@@ -488,4 +525,259 @@ function decodeEntryCursor(value?: string): EntryCursor | null {
   } catch {
     return null;
   }
+}
+
+type DuplicateLookup = {
+  key: string;
+  kind: DuplicateKind;
+};
+
+function getEntryDuplicateLookup(entry: Pick<EntryWithRelations, "assets" | "canonicalUrl" | "messageFingerprint">) {
+  if (entry.assets.length === 1 && entry.assets[0]?.contentHash) {
+    return {
+      key: entry.assets[0].contentHash,
+      kind: "asset"
+    } satisfies DuplicateLookup;
+  }
+
+  if (entry.canonicalUrl) {
+    return {
+      key: entry.canonicalUrl,
+      kind: "url"
+    } satisfies DuplicateLookup;
+  }
+
+  if (entry.messageFingerprint) {
+    return {
+      key: entry.messageFingerprint,
+      kind: "text"
+    } satisfies DuplicateLookup;
+  }
+
+  return null;
+}
+
+async function buildDuplicateSummaryMap(entries: EntryWithRelations[]) {
+  const assetHashes = new Set<string>();
+  const canonicalUrls = new Set<string>();
+  const messageFingerprints = new Set<string>();
+
+  entries.forEach((entry) => {
+    const lookup = getEntryDuplicateLookup(entry);
+
+    if (!lookup) {
+      return;
+    }
+
+    if (lookup.kind === "asset") {
+      assetHashes.add(lookup.key);
+      return;
+    }
+
+    if (lookup.kind === "url") {
+      canonicalUrls.add(lookup.key);
+      return;
+    }
+
+    messageFingerprints.add(lookup.key);
+  });
+
+  const [matchingAssets, matchingEntries] = await Promise.all([
+    assetHashes.size > 0
+      ? prisma.asset.findMany({
+          where: {
+            contentHash: {
+              in: [...assetHashes]
+            }
+          },
+          select: {
+            contentHash: true,
+            entryId: true
+          }
+        })
+      : Promise.resolve([]),
+    canonicalUrls.size > 0 || messageFingerprints.size > 0
+      ? prisma.entry.findMany({
+          where: {
+            OR: [
+              canonicalUrls.size > 0
+                ? {
+                    canonicalUrl: {
+                      in: [...canonicalUrls]
+                    }
+                  }
+                : undefined,
+              messageFingerprints.size > 0
+                ? {
+                    messageFingerprint: {
+                      in: [...messageFingerprints]
+                    }
+                  }
+                : undefined
+            ].filter(Boolean) as Prisma.EntryWhereInput[]
+          },
+          select: {
+            canonicalUrl: true,
+            id: true,
+            messageFingerprint: true
+          }
+        })
+      : Promise.resolve([])
+  ]);
+
+  const countByAssetHash = new Map<string, number>();
+  const countByCanonicalUrl = new Map<string, number>();
+  const countByMessageFingerprint = new Map<string, number>();
+
+  matchingAssets.forEach((asset) => {
+    if (!asset.contentHash) {
+      return;
+    }
+
+    countByAssetHash.set(asset.contentHash, (countByAssetHash.get(asset.contentHash) || 0) + 1);
+  });
+
+  matchingEntries.forEach((entry) => {
+    if (entry.canonicalUrl) {
+      countByCanonicalUrl.set(entry.canonicalUrl, (countByCanonicalUrl.get(entry.canonicalUrl) || 0) + 1);
+    }
+
+    if (entry.messageFingerprint) {
+      countByMessageFingerprint.set(
+        entry.messageFingerprint,
+        (countByMessageFingerprint.get(entry.messageFingerprint) || 0) + 1
+      );
+    }
+  });
+
+  const summaryMap = new Map<string, EntryDuplicateSummary>();
+
+  entries.forEach((entry) => {
+    const lookup = getEntryDuplicateLookup(entry);
+
+    if (!lookup) {
+      return;
+    }
+
+    const count =
+      lookup.kind === "asset"
+        ? countByAssetHash.get(lookup.key) || 0
+        : lookup.kind === "url"
+          ? countByCanonicalUrl.get(lookup.key) || 0
+          : countByMessageFingerprint.get(lookup.key) || 0;
+
+    if (count > 1) {
+      summaryMap.set(entry.id, {
+        count,
+        kind: lookup.kind
+      });
+    }
+  });
+
+  return summaryMap;
+}
+
+function buildEntrySearchMatch(entry: EntryWithRelations, query?: string): EntrySearchMatch {
+  const normalizedQuery = query?.trim();
+
+  if (!normalizedQuery) {
+    return null;
+  }
+
+  const snippets: EntrySearchSnippet[] = [];
+  const sourceSet = new Set<EntrySearchSnippetSource>();
+
+  const pushSnippet = (snippet: EntrySearchSnippet | null) => {
+    if (!snippet || snippets.length >= 4) {
+      return;
+    }
+
+    sourceSet.add(snippet.source);
+    snippets.push(snippet);
+  };
+
+  const messageSnippet = entry.message ? createSearchSnippet(entry.message, normalizedQuery) : null;
+  pushSnippet(
+    messageSnippet
+      ? {
+          source: "message",
+          text: messageSnippet
+        }
+      : null
+  );
+
+  const senderSnippet = [entry.senderName, entry.senderHost, entry.senderIp].filter(Boolean).join(" · ");
+  const matchedSenderSnippet = senderSnippet ? createSearchSnippet(senderSnippet, normalizedQuery) : null;
+  pushSnippet(
+    matchedSenderSnippet
+      ? {
+          source: "sender",
+          text: matchedSenderSnippet
+        }
+      : null
+  );
+
+  entry.assets.forEach((asset) => {
+    if (snippets.length >= 4) {
+      return;
+    }
+
+    const nameSnippet = createSearchSnippet(asset.originalName, normalizedQuery, { radius: 18 });
+
+    if (nameSnippet) {
+      pushSnippet({
+        assetName: asset.originalName,
+        source: "assetName",
+        text: nameSnippet
+      });
+      return;
+    }
+
+    if (!asset.searchText) {
+      return;
+    }
+
+    const assetTextSnippet = createSearchSnippet(asset.searchText, normalizedQuery, { compactWhitespace: true });
+
+    if (assetTextSnippet) {
+      pushSnippet({
+        assetName: asset.originalName,
+        source: "assetText",
+        text: assetTextSnippet
+      });
+    }
+  });
+
+  if (snippets.length === 0) {
+    return null;
+  }
+
+  return {
+    snippets,
+    sources: [...sourceSet]
+  };
+}
+
+function createSearchSnippet(
+  value: string,
+  query: string,
+  input?: {
+    compactWhitespace?: boolean;
+    radius?: number;
+  }
+): string | null {
+  const compacted = input?.compactWhitespace ? value.replace(/\s+/g, " ").trim() : value;
+  const index = compacted.toLocaleLowerCase().indexOf(query.toLocaleLowerCase());
+
+  if (index === -1) {
+    return null;
+  }
+
+  const radius = input?.radius || 40;
+  const start = Math.max(0, index - radius);
+  const end = Math.min(compacted.length, index + query.length + radius);
+  const prefix = start > 0 ? "…" : "";
+  const suffix = end < compacted.length ? "…" : "";
+
+  return `${prefix}${compacted.slice(start, end).trim()}${suffix}`;
 }

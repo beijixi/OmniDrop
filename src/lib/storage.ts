@@ -1,15 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import type { AssetKind } from "@prisma/client";
 import { StorageDriver } from "@prisma/client";
 
 import { env } from "@/lib/env";
+import { buildContentHash } from "@/lib/dedupe";
 import { detectAssetKind, extensionFromMimeType, getFileExtension } from "@/lib/file-types";
 
 export type SavedUpload = {
+  contentHash: string;
   kind: AssetKind;
   mimeType: string;
   originalName: string;
@@ -57,6 +59,17 @@ export async function removeStoredFiles(files: SavedUpload[]): Promise<void> {
 
 export async function removeStoredAssets(assets: StoredAssetTarget[]): Promise<void> {
   await Promise.allSettled(assets.map((asset) => removeStoredAsset(asset)));
+}
+
+export async function readStoredAssetBuffer(asset: StoredAssetTarget): Promise<Buffer> {
+  switch (asset.storageDriver) {
+    case StorageDriver.S3:
+      return readFromS3(asset.relativePath);
+    case StorageDriver.WEBDAV:
+      return readFromWebDav(asset.relativePath);
+    default:
+      return readFile(getLocalStoredFilePath(asset.relativePath));
+  }
 }
 
 export function getLocalStoredFilePath(relativePath: string): string {
@@ -122,6 +135,7 @@ async function saveIncomingFile(file: File, now: Date): Promise<SavedUpload> {
   const segment = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}`;
   const relativePath = path.posix.join(segment, storedName);
   const buffer = Buffer.from(await file.arrayBuffer());
+  const contentHash = buildContentHash(buffer);
   const storageDriver = getConfiguredStorageDriver();
 
   switch (storageDriver) {
@@ -137,6 +151,7 @@ async function saveIncomingFile(file: File, now: Date): Promise<SavedUpload> {
   }
 
   return {
+    contentHash,
     kind: detectAssetKind(file.type || "", originalName),
     mimeType: file.type || "application/octet-stream",
     originalName,
@@ -246,6 +261,22 @@ async function removeFromS3(relativePath: string) {
   );
 }
 
+async function readFromS3(relativePath: string) {
+  const client = getS3Client();
+  const response = await client.send(
+    new GetObjectCommand({
+      Bucket: getS3Bucket(),
+      Key: relativePath
+    })
+  );
+
+  if (!response.Body) {
+    throw new Error("S3_READ_EMPTY_BODY");
+  }
+
+  return Buffer.from(await response.Body.transformToByteArray());
+}
+
 async function removeFromWebDav(relativePath: string) {
   const response = await fetch(buildWebDavUrl(relativePath), {
     headers: getWebDavAuthHeaders(),
@@ -255,6 +286,18 @@ async function removeFromWebDav(relativePath: string) {
   if (!response.ok && response.status !== 404) {
     throw new Error(`WEBDAV_DELETE_FAILED_${response.status}`);
   }
+}
+
+async function readFromWebDav(relativePath: string) {
+  const response = await fetch(buildWebDavUrl(relativePath), {
+    headers: getWebDavAuthHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(`WEBDAV_READ_FAILED_${response.status}`);
+  }
+
+  return Buffer.from(await response.arrayBuffer());
 }
 
 function assertS3Configured() {

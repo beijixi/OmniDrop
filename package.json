@@ -1,6 +1,6 @@
 {
   "name": "omnidrop",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "guard:public-files": "node scripts/check-public-files.mjs",
+    "backfill:dedupe": "node --import tsx ./scripts/backfill-dedupe-metadata.ts",
     "backfill:search-text": "node --import tsx ./scripts/backfill-asset-search-text.ts",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push"

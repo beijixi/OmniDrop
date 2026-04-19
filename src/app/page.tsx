@@ -7,6 +7,7 @@ import { normalizeEntryTypeOption } from "@/lib/file-types";
 import { getServerI18n } from "@/lib/i18n-server";
 import { t } from "@/lib/i18n";
 import { resolveViewerIpv4FromHeaders } from "@/lib/request-source";
+import { getSavedViews } from "@/lib/saved-views";
 import { isMobileUserAgent } from "@/lib/utils";
 import { headers } from "next/headers";
 
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 
 type HomePageProps = {
   searchParams?: {
+    duplicates?: string;
     q?: string;
     type?: string;
     view?: string;
@@ -25,22 +27,29 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const currentQuery = searchParams?.q?.trim() || "";
   const currentType = normalizeEntryTypeOption(searchParams?.type);
   const currentView = normalizeEntryView(searchParams?.view);
+  const duplicatesOnly = searchParams?.duplicates === "1";
   const { locale } = getServerI18n();
   const viewerIp = resolveViewerIpv4FromHeaders(requestHeaders);
   const preferPdfInlinePreview = !isMobileUserAgent(requestHeaders.get("user-agent"));
-  const entries = await getEntries({
-    q: currentQuery,
-    type: currentType,
-    view: currentView
-  });
+  const [entries, savedViews] = await Promise.all([
+    getEntries({
+      duplicatesOnly,
+      q: currentQuery,
+      type: currentType,
+      view: currentView
+    }),
+    getSavedViews()
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl">
       <TimelineToolbar
+        currentDuplicatesOnly={duplicatesOnly}
         currentQuery={currentQuery}
         currentType={currentType}
         currentView={currentView}
         resultCount={entries.length}
+        savedViews={savedViews}
       />
 
       <div className="relative space-y-5 pb-24 sm:space-y-6 sm:pb-32">
@@ -52,6 +61,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               locale={locale}
               viewerIp={viewerIp}
               preferPdfInlinePreview={preferPdfInlinePreview}
+              searchQuery={currentQuery}
             />
           ))
         ) : (

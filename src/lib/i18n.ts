@@ -45,6 +45,7 @@ export type MessageKey =
   | "toolbar.clear_selection"
   | "toolbar.exit_selection"
   | "toolbar.long_press_hint"
+  | "toolbar.all_tags"
   | "empty.title"
   | "empty.description"
   | "composer.empty_error"
@@ -141,6 +142,17 @@ export type MessageKey =
   | "actions.batch_archived"
   | "actions.batch_unarchived"
   | "actions.batch_deleted"
+  | "actions.batch_add_tags"
+  | "actions.batch_tags_added"
+  | "actions.edit_tags"
+  | "actions.tags_placeholder"
+  | "actions.save_tags"
+  | "actions.clear_tags"
+  | "actions.tags_saved"
+  | "actions.tags_cleared"
+  | "actions.tags_failed"
+  | "actions.tags_empty"
+  | "actions.tags_required"
   | "settings.eyebrow"
   | "settings.title"
   | "settings.subtitle"
@@ -231,6 +243,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "toolbar.clear_selection": "清空选择",
     "toolbar.exit_selection": "退出整理",
     "toolbar.long_press_hint": "手机端长按内容也能直接进入多选。",
+    "toolbar.all_tags": "全部标签",
     "empty.title": "这里会像聊天一样持续流动",
     "empty.description": "直接从底部发送文本、图片、视频、PDF 或任意文件，内容会立刻出现在时间线上。",
     "composer.empty_error": "请输入文本，或者添加至少一个文件。",
@@ -327,6 +340,17 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.batch_archived": "已归档 {count} 条内容",
     "actions.batch_unarchived": "已取消归档 {count} 条内容",
     "actions.batch_deleted": "已删除 {count} 条内容",
+    "actions.batch_add_tags": "批量加标签",
+    "actions.batch_tags_added": "已为 {count} 条内容应用标签",
+    "actions.edit_tags": "编辑标签",
+    "actions.tags_placeholder": "输入标签，支持逗号或换行分隔",
+    "actions.save_tags": "保存标签",
+    "actions.clear_tags": "清空标签",
+    "actions.tags_saved": "标签已保存",
+    "actions.tags_cleared": "标签已清空",
+    "actions.tags_failed": "标签更新失败",
+    "actions.tags_empty": "当前没有标签可清空。",
+    "actions.tags_required": "请先输入至少一个标签。",
     "duplicates.eyebrow": "Duplicate Groups",
     "duplicates.title": "重复组工作台",
     "duplicates.subtitle": "先按组看清楚，再决定保留哪一条。这里会把相同文件、相同链接和近乎相同的文本聚在一起，方便你批量收口。",
@@ -414,6 +438,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "toolbar.clear_selection": "Clear selection",
     "toolbar.exit_selection": "Exit organize",
     "toolbar.long_press_hint": "On phones, you can also long-press an item to enter multi-select.",
+    "toolbar.all_tags": "All tags",
     "empty.title": "This space will flow like a chat timeline",
     "empty.description": "Send text, images, videos, PDFs, or any file from the composer below and they will appear here instantly.",
     "composer.empty_error": "Type a message or add at least one file.",
@@ -510,6 +535,17 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.batch_archived": "Archived {count} items",
     "actions.batch_unarchived": "Moved {count} items back to active",
     "actions.batch_deleted": "Deleted {count} items",
+    "actions.batch_add_tags": "Add tags",
+    "actions.batch_tags_added": "Applied tags to {count} items",
+    "actions.edit_tags": "Edit tags",
+    "actions.tags_placeholder": "Enter tags separated by commas or new lines",
+    "actions.save_tags": "Save tags",
+    "actions.clear_tags": "Clear tags",
+    "actions.tags_saved": "Tags saved",
+    "actions.tags_cleared": "Tags cleared",
+    "actions.tags_failed": "Could not update tags",
+    "actions.tags_empty": "There are no tags to clear.",
+    "actions.tags_required": "Enter at least one tag first.",
     "duplicates.eyebrow": "Duplicate Groups",
     "duplicates.title": "Duplicate Workbench",
     "duplicates.subtitle": "Review duplicates in groups first, then decide which one to keep. Files, links, and repeated text are gathered here for cleanup.",
@@ -597,6 +633,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "toolbar.clear_selection": "選択をクリア",
     "toolbar.exit_selection": "整理を終了",
     "toolbar.long_press_hint": "モバイルでは内容を長押しして複数選択に入れます。",
+    "toolbar.all_tags": "すべてのタグ",
     "empty.title": "ここはチャットのように流れるタイムラインです",
     "empty.description": "下の入力欄からテキスト、画像、動画、PDF、その他のファイルを送ると、すぐにここへ表示されます。",
     "composer.empty_error": "テキストを入力するか、少なくとも 1 つのファイルを追加してください。",
@@ -693,6 +730,17 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.batch_archived": "{count} 件をアーカイブしました",
     "actions.batch_unarchived": "{count} 件をアクティブに戻しました",
     "actions.batch_deleted": "{count} 件を削除しました",
+    "actions.batch_add_tags": "タグを追加",
+    "actions.batch_tags_added": "{count} 件にタグを適用しました",
+    "actions.edit_tags": "タグを編集",
+    "actions.tags_placeholder": "タグを入力してください。カンマや改行で区切れます",
+    "actions.save_tags": "タグを保存",
+    "actions.clear_tags": "タグをクリア",
+    "actions.tags_saved": "タグを保存しました",
+    "actions.tags_cleared": "タグをクリアしました",
+    "actions.tags_failed": "タグを更新できませんでした",
+    "actions.tags_empty": "クリアするタグはありません。",
+    "actions.tags_required": "少なくとも 1 つタグを入力してください。",
     "duplicates.eyebrow": "Duplicate Groups",
     "duplicates.title": "重複グループ作業台",
     "duplicates.subtitle": "まずグループで見比べてから、どれを残すか決められます。同じファイル、同じリンク、近い本文をここにまとめます。",
@@ -780,6 +828,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "toolbar.clear_selection": "Effacer la selection",
     "toolbar.exit_selection": "Quitter le tri",
     "toolbar.long_press_hint": "Sur mobile, un appui long sur un element ouvre aussi la multi-selection.",
+    "toolbar.all_tags": "Tous les tags",
     "empty.title": "Cet espace suit le rythme d'une conversation",
     "empty.description": "Envoyez du texte, des images, des vidéos, des PDF ou tout autre fichier depuis la zone du bas pour les voir apparaitre ici instantanément.",
     "composer.empty_error": "Saisissez un message ou ajoutez au moins un fichier.",
@@ -876,6 +925,17 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.batch_archived": "{count} elements archives",
     "actions.batch_unarchived": "{count} elements remis dans le flux actif",
     "actions.batch_deleted": "{count} elements supprimes",
+    "actions.batch_add_tags": "Ajouter des tags",
+    "actions.batch_tags_added": "Tags appliques a {count} elements",
+    "actions.edit_tags": "Modifier les tags",
+    "actions.tags_placeholder": "Saisissez des tags, separes par des virgules ou des retours a la ligne",
+    "actions.save_tags": "Enregistrer les tags",
+    "actions.clear_tags": "Effacer les tags",
+    "actions.tags_saved": "Tags enregistres",
+    "actions.tags_cleared": "Tags effaces",
+    "actions.tags_failed": "Impossible de mettre a jour les tags",
+    "actions.tags_empty": "Aucun tag a effacer.",
+    "actions.tags_required": "Saisissez au moins un tag.",
     "duplicates.eyebrow": "Duplicate Groups",
     "duplicates.title": "Atelier des doublons",
     "duplicates.subtitle": "Examinez d'abord les doublons par groupe, puis choisissez quoi conserver. Les fichiers, liens et textes repetes sont regroupes ici.",
@@ -963,6 +1023,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "toolbar.clear_selection": "Auswahl leeren",
     "toolbar.exit_selection": "Aktion verlassen",
     "toolbar.long_press_hint": "Auf dem Handy startet ein langer Druck ebenfalls die Mehrfachauswahl.",
+    "toolbar.all_tags": "Alle Tags",
     "empty.title": "Dieser Bereich verhaelt sich wie ein Chat-Verlauf",
     "empty.description": "Sende unten Text, Bilder, Videos, PDFs oder beliebige Dateien und sie erscheinen sofort in der Timeline.",
     "composer.empty_error": "Gib eine Nachricht ein oder fuege mindestens eine Datei hinzu.",
@@ -1059,6 +1120,17 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.batch_archived": "{count} Eintraege archiviert",
     "actions.batch_unarchived": "{count} Eintraege wieder aktiviert",
     "actions.batch_deleted": "{count} Eintraege geloescht",
+    "actions.batch_add_tags": "Tags hinzufuegen",
+    "actions.batch_tags_added": "Tags auf {count} Eintraege angewendet",
+    "actions.edit_tags": "Tags bearbeiten",
+    "actions.tags_placeholder": "Tags eingeben, getrennt durch Kommas oder Zeilenumbrueche",
+    "actions.save_tags": "Tags speichern",
+    "actions.clear_tags": "Tags leeren",
+    "actions.tags_saved": "Tags gespeichert",
+    "actions.tags_cleared": "Tags entfernt",
+    "actions.tags_failed": "Tags konnten nicht aktualisiert werden",
+    "actions.tags_empty": "Es gibt keine Tags zum Entfernen.",
+    "actions.tags_required": "Bitte zuerst mindestens ein Tag eingeben.",
     "duplicates.eyebrow": "Duplicate Groups",
     "duplicates.title": "Duplikat-Werkbank",
     "duplicates.subtitle": "Pruefe Duplikate zuerst gruppiert und entscheide dann, welcher Eintrag bleiben soll. Dateien, Links und aehnliche Texte werden hier gebuendelt.",
@@ -1146,6 +1218,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "toolbar.clear_selection": "Limpiar seleccion",
     "toolbar.exit_selection": "Salir de organizar",
     "toolbar.long_press_hint": "En movil tambien puedes mantener pulsado un elemento para entrar en multi-seleccion.",
+    "toolbar.all_tags": "Todas las etiquetas",
     "empty.title": "Este espacio fluye como una conversacion",
     "empty.description": "Envia texto, imagenes, videos, PDF o cualquier archivo desde el compositor inferior y aparecera aqui al instante.",
     "composer.empty_error": "Escribe un mensaje o agrega al menos un archivo.",
@@ -1242,6 +1315,17 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.batch_archived": "Se archivaron {count} elementos",
     "actions.batch_unarchived": "Se devolvieron {count} elementos al flujo activo",
     "actions.batch_deleted": "Se eliminaron {count} elementos",
+    "actions.batch_add_tags": "Anadir etiquetas",
+    "actions.batch_tags_added": "Se aplicaron etiquetas a {count} elementos",
+    "actions.edit_tags": "Editar etiquetas",
+    "actions.tags_placeholder": "Escribe etiquetas separadas por comas o saltos de linea",
+    "actions.save_tags": "Guardar etiquetas",
+    "actions.clear_tags": "Limpiar etiquetas",
+    "actions.tags_saved": "Etiquetas guardadas",
+    "actions.tags_cleared": "Etiquetas eliminadas",
+    "actions.tags_failed": "No se pudieron actualizar las etiquetas",
+    "actions.tags_empty": "No hay etiquetas para limpiar.",
+    "actions.tags_required": "Escribe al menos una etiqueta primero.",
     "duplicates.eyebrow": "Duplicate Groups",
     "duplicates.title": "Mesa de duplicados",
     "duplicates.subtitle": "Primero revisa los duplicados por grupo y luego decide cual conservar. Aqui se juntan archivos, enlaces y textos repetidos.",

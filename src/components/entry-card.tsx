@@ -92,6 +92,7 @@ export async function EntryCard({
                   isFavorite={entry.isFavorite}
                   isPinned={Boolean(entry.pinnedAt)}
                   messageText={entry.message}
+                  tags={entry.tags.map((item) => item.tag.name)}
                 />
               ) : null}
 
@@ -120,6 +121,23 @@ export async function EntryCard({
                     <span className="text-rose-500"> · {t(locale, "entry.share_revoked")}</span>
                   ) : null}
                 </div>
+                {entry.tags.length > 0 ? (
+                  <div
+                    className={cn(
+                      "mt-1 flex max-w-full flex-wrap gap-1.5",
+                      align === "right" ? "justify-end" : "justify-start"
+                    )}
+                  >
+                    {entry.tags.map((item) => (
+                      <span
+                        key={`${entry.id}-${item.tagId}`}
+                        className="rounded-full border border-emerald-100/90 bg-emerald-50/85 px-2.5 py-1 text-[10px] font-medium text-emerald-700"
+                      >
+                        #{item.tag.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
 

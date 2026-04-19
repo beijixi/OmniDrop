@@ -82,6 +82,7 @@ model SavedView {
   id        String    @id @default(cuid())
   name      String    @db.VarChar(64)
   query     String?   @db.Text
+  tagName   String?   @db.VarChar(64)
   entryType EntryType?
   entryView String    @default("ACTIVE") @db.VarChar(24)
   duplicatesOnly Boolean @default(false)
@@ -89,6 +90,7 @@ model SavedView {
   updatedAt DateTime  @updatedAt
 
   @@index([updatedAt])
+  @@index([tagName, updatedAt])
 }
 
 model Tag {

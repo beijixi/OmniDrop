@@ -9,6 +9,7 @@ import { getServerI18n } from "@/lib/i18n-server";
 import { t } from "@/lib/i18n";
 import { resolveViewerIpv4FromHeaders } from "@/lib/request-source";
 import { getSavedViews } from "@/lib/saved-views";
+import { listTagSummaries, normalizeTagNames } from "@/lib/tags";
 import { isMobileUserAgent } from "@/lib/utils";
 import { headers } from "next/headers";
 
@@ -18,6 +19,7 @@ type HomePageProps = {
   searchParams?: {
     duplicates?: string;
     q?: string;
+    tag?: string;
     type?: string;
     view?: string;
   };
@@ -26,27 +28,32 @@ type HomePageProps = {
 export default async function HomePage({ searchParams }: HomePageProps) {
   const requestHeaders = headers();
   const currentQuery = searchParams?.q?.trim() || "";
+  const currentTag = normalizeTagNames(searchParams?.tag?.trim() || "").at(0) || "";
   const currentType = normalizeEntryTypeOption(searchParams?.type);
   const currentView = normalizeEntryView(searchParams?.view);
   const duplicatesOnly = searchParams?.duplicates === "1";
   const { locale } = getServerI18n();
   const viewerIp = resolveViewerIpv4FromHeaders(requestHeaders);
   const preferPdfInlinePreview = !isMobileUserAgent(requestHeaders.get("user-agent"));
-  const [entries, savedViews] = await Promise.all([
+  const [entries, savedViews, availableTags] = await Promise.all([
     getEntries({
       duplicatesOnly,
       q: currentQuery,
+      tag: currentTag,
       type: currentType,
       view: currentView
     }),
-    getSavedViews()
+    getSavedViews(),
+    listTagSummaries()
   ]);
 
   return (
     <div className="mx-auto max-w-5xl">
       <TimelineToolbar
+        availableTags={availableTags}
         currentDuplicatesOnly={duplicatesOnly}
         currentQuery={currentQuery}
+        currentTag={currentTag}
         currentType={currentType}
         currentView={currentView}
         resultCount={entries.length}
@@ -55,7 +62,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       <div className="relative">
         {entries.length > 0 ? (
-          <BulkSelectionTimeline entryIds={entries.map((entry) => entry.id)}>
+          <BulkSelectionTimeline availableTags={availableTags.map((tag) => tag.name)} entryIds={entries.map((entry) => entry.id)}>
             <div className="space-y-5 pb-24 sm:space-y-6 sm:pb-32">
               {entries.map((entry) => (
                 <SelectableEntryShell key={entry.id} entryId={entry.id}>

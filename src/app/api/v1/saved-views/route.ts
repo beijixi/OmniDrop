@@ -11,6 +11,7 @@ export async function POST(request: Request) {
       duplicatesOnly?: boolean;
       name?: string;
       q?: string;
+      tag?: string;
       type?: string;
       view?: string;
     };
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
       duplicatesOnly: payload.duplicatesOnly,
       name: String(payload.name || ""),
       q: payload.q,
+      tag: payload.tag,
       type: payload.type,
       view: payload.view
     });

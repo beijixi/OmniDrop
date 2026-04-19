@@ -10,11 +10,14 @@ import { entryViewOptions, type EntryView } from "@/lib/entry-views";
 import { entryTypeOptions } from "@/lib/file-types";
 import type { MessageKey } from "@/lib/i18n";
 import type { SavedViewSummary } from "@/lib/saved-views";
+import type { TagSummary } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 
 type TimelineToolbarProps = {
+  availableTags: TagSummary[];
   currentDuplicatesOnly?: boolean;
   currentQuery?: string;
+  currentTag?: string;
   currentType?: string;
   currentView?: EntryView;
   resultCount: number;
@@ -22,8 +25,10 @@ type TimelineToolbarProps = {
 };
 
 export function TimelineToolbar({
+  availableTags,
   currentDuplicatesOnly = false,
   currentQuery,
+  currentTag,
   currentType,
   currentView = "ACTIVE",
   resultCount,
@@ -33,6 +38,7 @@ export function TimelineToolbar({
   const { entryTypeLabels, entryViewLabels, t } = useI18n();
   const hasActiveFilters =
     Boolean(currentQuery) ||
+    Boolean(currentTag) ||
     (currentType || "ALL") !== "ALL" ||
     currentView !== "ACTIVE" ||
     currentDuplicatesOnly;
@@ -53,18 +59,23 @@ export function TimelineToolbar({
       return;
     }
 
-    setSaveViewName((current) => current || suggestSavedViewName({
-      currentDuplicatesOnly,
-      currentQuery,
-      currentType,
-      currentView,
-      entryTypeLabels,
-      entryViewLabels,
-      t
-    }));
+    setSaveViewName((current) =>
+      current ||
+      suggestSavedViewName({
+        currentDuplicatesOnly,
+        currentQuery,
+        currentTag,
+        currentType,
+        currentView,
+        entryTypeLabels,
+        entryViewLabels,
+        t
+      })
+    );
   }, [
     currentDuplicatesOnly,
     currentQuery,
+    currentTag,
     currentType,
     currentView,
     entryTypeLabels,
@@ -104,6 +115,7 @@ export function TimelineToolbar({
     isSavedViewActive(savedView, {
       currentDuplicatesOnly,
       currentQuery,
+      currentTag,
       currentType,
       currentView
     })
@@ -127,6 +139,11 @@ export function TimelineToolbar({
                 {currentQuery ? (
                   <span className="max-w-[11rem] truncate rounded-full border border-cyan-100/80 bg-cyan-50/80 px-3 py-1.5 text-cyan-700">
                     {currentQuery}
+                  </span>
+                ) : null}
+                {currentTag ? (
+                  <span className="max-w-[11rem] truncate rounded-full border border-emerald-200/80 bg-emerald-50/80 px-3 py-1.5 text-emerald-700">
+                    #{currentTag}
                   </span>
                 ) : null}
                 {(currentType || "ALL") !== "ALL" ? (
@@ -162,6 +179,7 @@ export function TimelineToolbar({
                   <input type="hidden" name="view" value={currentView} />
                 ) : null}
                 {currentDuplicatesOnly ? <input type="hidden" name="duplicates" value="1" /> : null}
+                {currentTag ? <input type="hidden" name="tag" value={currentTag} /> : null}
 
                 <div className="relative flex-1">
                   <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -262,6 +280,7 @@ export function TimelineToolbar({
                             href={buildHref({
                               duplicatesOnly: savedView.duplicatesOnly,
                               q: savedView.query,
+                              tag: savedView.tagName,
                               type: savedView.entryType,
                               view: savedView.entryView
                             })}
@@ -305,6 +324,7 @@ export function TimelineToolbar({
                       href={buildHref({
                         duplicatesOnly: currentDuplicatesOnly,
                         q: currentQuery,
+                        tag: currentTag,
                         type: currentType,
                         view
                       })}
@@ -324,6 +344,7 @@ export function TimelineToolbar({
                   href={buildHref({
                     duplicatesOnly: !currentDuplicatesOnly,
                     q: currentQuery,
+                    tag: currentTag,
                     type: currentType,
                     view: currentView
                   })}
@@ -339,6 +360,50 @@ export function TimelineToolbar({
               </div>
 
               <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-1">
+                <Link
+                  href={buildHref({
+                    duplicatesOnly: currentDuplicatesOnly,
+                    q: currentQuery,
+                    type: currentType,
+                    view: currentView
+                  })}
+                  className={cn(
+                    "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition",
+                    !currentTag
+                      ? "border-transparent bg-[linear-gradient(135deg,#047857,#10b981_58%,#34d399)] text-white shadow-[0_12px_26px_rgba(16,185,129,0.2)]"
+                      : "border-white/78 bg-white/74 text-slate-600 hover:border-emerald-200 hover:text-emerald-700"
+                  )}
+                >
+                  {t("toolbar.all_tags")}
+                </Link>
+
+                {availableTags.map((tag) => {
+                  const active = currentTag === tag.name;
+
+                  return (
+                    <Link
+                      key={tag.name}
+                      href={buildHref({
+                        duplicatesOnly: currentDuplicatesOnly,
+                        q: currentQuery,
+                        tag: tag.name,
+                        type: currentType,
+                        view: currentView
+                      })}
+                      className={cn(
+                        "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition",
+                        active
+                          ? "border-transparent bg-[linear-gradient(135deg,#047857,#10b981_58%,#34d399)] text-white shadow-[0_12px_26px_rgba(16,185,129,0.2)]"
+                          : "border-white/78 bg-white/74 text-slate-600 hover:border-emerald-200 hover:text-emerald-700"
+                      )}
+                    >
+                      #{tag.name}
+                    </Link>
+                  );
+                })}
+              </div>
+
+              <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-1">
                 {entryTypeOptions.map((type) => {
                   const active = (currentType || "ALL") === type;
 
@@ -348,6 +413,7 @@ export function TimelineToolbar({
                       href={buildHref({
                         duplicatesOnly: currentDuplicatesOnly,
                         q: currentQuery,
+                        tag: currentTag,
                         type,
                         view: currentView
                       })}
@@ -387,6 +453,7 @@ export function TimelineToolbar({
           duplicatesOnly: currentDuplicatesOnly,
           name: saveViewName.trim(),
           q: currentQuery || "",
+          tag: currentTag || "",
           type: currentType || "ALL",
           view: currentView
         }),
@@ -445,6 +512,7 @@ export function TimelineToolbar({
 function buildHref(input: {
   duplicatesOnly?: boolean;
   q?: string;
+  tag?: string;
   type?: string;
   view?: EntryView;
 }): string {
@@ -452,6 +520,10 @@ function buildHref(input: {
 
   if (input.q) {
     params.set("q", input.q);
+  }
+
+  if (input.tag) {
+    params.set("tag", input.tag);
   }
 
   if (input.type && input.type !== "ALL") {
@@ -475,6 +547,7 @@ function isSavedViewActive(
   current: {
     currentDuplicatesOnly: boolean;
     currentQuery?: string;
+    currentTag?: string;
     currentType?: string;
     currentView: EntryView;
   }
@@ -482,6 +555,7 @@ function isSavedViewActive(
   return (
     savedView.duplicatesOnly === current.currentDuplicatesOnly &&
     savedView.query === (current.currentQuery || "") &&
+    savedView.tagName === (current.currentTag || "") &&
     savedView.entryType === (current.currentType || "ALL") &&
     savedView.entryView === current.currentView
   );
@@ -490,6 +564,7 @@ function isSavedViewActive(
 function suggestSavedViewName(input: {
   currentDuplicatesOnly: boolean;
   currentQuery?: string;
+  currentTag?: string;
   currentType?: string;
   currentView: EntryView;
   entryTypeLabels: Record<string, string>;
@@ -500,6 +575,10 @@ function suggestSavedViewName(input: {
 
   if (input.currentQuery) {
     parts.push(input.currentQuery);
+  }
+
+  if (input.currentTag) {
+    parts.push(`#${input.currentTag}`);
   }
 
   if ((input.currentType || "ALL") !== "ALL") {

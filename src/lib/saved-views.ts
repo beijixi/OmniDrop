@@ -3,6 +3,7 @@ import type { EntryType, SavedView } from "@prisma/client";
 import { normalizeEntryView, type EntryView } from "@/lib/entry-views";
 import { normalizeEntryTypeOption } from "@/lib/file-types";
 import { prisma } from "@/lib/prisma";
+import { normalizeTagNames } from "@/lib/tags";
 
 const MAX_SAVED_VIEWS = 12;
 
@@ -10,6 +11,7 @@ export type SavedViewInput = {
   duplicatesOnly?: boolean;
   name: string;
   q?: string | null;
+  tag?: string | null;
   type?: string | null;
   view?: string | null;
 };
@@ -21,6 +23,7 @@ export type SavedViewSummary = {
   id: string;
   name: string;
   query: string;
+  tagName: string;
   updatedAt: string;
 };
 
@@ -84,6 +87,7 @@ export async function deleteSavedView(id: string): Promise<void> {
 function normalizeSavedViewInput(input: SavedViewInput): Omit<SavedView, "createdAt" | "id" | "updatedAt"> | null {
   const name = input.name.trim().slice(0, 64);
   const query = input.q?.trim() || null;
+  const tagName = normalizeTagNames(input.tag || "").at(0) || null;
   const entryType = normalizeEntryTypeOption(input.type);
   const entryView = normalizeEntryView(input.view);
   const duplicatesOnly = Boolean(input.duplicatesOnly);
@@ -92,7 +96,7 @@ function normalizeSavedViewInput(input: SavedViewInput): Omit<SavedView, "create
     throw new Error("EMPTY_SAVED_VIEW_NAME");
   }
 
-  if (!query && entryType === "ALL" && entryView === "ACTIVE" && !duplicatesOnly) {
+  if (!query && !tagName && entryType === "ALL" && entryView === "ACTIVE" && !duplicatesOnly) {
     return null;
   }
 
@@ -101,7 +105,8 @@ function normalizeSavedViewInput(input: SavedViewInput): Omit<SavedView, "create
     entryType: entryType === "ALL" ? null : entryType,
     entryView,
     name,
-    query
+    query,
+    tagName
   };
 }
 
@@ -113,6 +118,7 @@ function serializeSavedView(view: SavedView): SavedViewSummary {
     id: view.id,
     name: view.name,
     query: view.query || "",
+    tagName: view.tagName || "",
     updatedAt: view.updatedAt.toISOString()
   };
 }

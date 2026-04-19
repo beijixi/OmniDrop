@@ -80,6 +80,12 @@ export function apiErrorFromUnknown(
           message: "请先选择至少一条内容。",
           status: 400
         });
+      case "EMPTY_TAGS":
+        return apiError({
+          code: "EMPTY_TAGS",
+          message: "请先输入至少一个标签。",
+          status: 400
+        });
       case "EMPTY_DUPLICATE_KEEP_ENTRY":
         return apiError({
           code: "EMPTY_DUPLICATE_KEEP_ENTRY",

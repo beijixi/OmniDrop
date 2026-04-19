@@ -44,6 +44,7 @@ export function serializeEntry(
       ip: entry.senderIp,
       name: entry.senderName
     },
+    tags: entry.tags.map((item) => item.tag.name),
     assets: entry.assets.map((asset) => ({
       id: asset.id,
       kind: asset.kind,

@@ -6,6 +6,7 @@ import { applyEntryBatchAction, type EntryBatchAction } from "@/lib/entries";
 export const runtime = "nodejs";
 
 const supportedBatchActions = new Set<EntryBatchAction>([
+  "add_tags",
   "archive",
   "delete",
   "favorite",
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
     const payload = (await request.json().catch(() => ({}))) as {
       action?: string;
       ids?: string[];
+      tags?: string[];
     };
 
     if (!payload.action || !supportedBatchActions.has(payload.action as EntryBatchAction)) {
@@ -44,7 +46,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await applyEntryBatchAction(payload.ids, payload.action as EntryBatchAction);
+    const result = await applyEntryBatchAction(payload.ids, payload.action as EntryBatchAction, {
+      tags: payload.tags
+    });
 
     revalidatePath("/");
 

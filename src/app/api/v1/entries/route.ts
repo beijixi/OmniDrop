@@ -16,6 +16,7 @@ export async function GET(request: Request) {
       const limitValue = searchParams.get("limit");
       const limit = limitValue ? Number.parseInt(limitValue, 10) : undefined;
       const query = searchParams.get("q") || "";
+      const tag = searchParams.get("tag") || "";
       const type = searchParams.get("type") || "";
       const view = searchParams.get("view") || "";
       const cursor = searchParams.get("cursor") || "";
@@ -25,6 +26,7 @@ export async function GET(request: Request) {
           cursor,
           limit,
           q: query,
+          tag,
           type,
           view
         }),

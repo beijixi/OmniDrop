@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/components/i18n-provider";
 import type { EntryBatchAction } from "@/lib/entries";
-import { cn } from "@/lib/utils";
+import { cn, normalizeTagList } from "@/lib/utils";
 
 type BulkSelectionContextValue = {
   enterSelectionMode: (entryId?: string) => void;
@@ -17,6 +17,7 @@ type BulkSelectionContextValue = {
 const BulkSelectionContext = createContext<BulkSelectionContextValue | null>(null);
 
 type BulkSelectionTimelineProps = {
+  availableTags?: string[];
   children: ReactNode;
   entryIds: string[];
 };
@@ -24,9 +25,10 @@ type BulkSelectionTimelineProps = {
 type BatchActionPayload = {
   changedCount?: number;
   matchedCount?: number;
+  tagNames?: string[];
 };
 
-const batchActions: EntryBatchAction[] = [
+const batchActions: Array<Exclude<EntryBatchAction, "add_tags">> = [
   "pin",
   "unpin",
   "favorite",
@@ -36,7 +38,10 @@ const batchActions: EntryBatchAction[] = [
   "delete"
 ];
 
-const actionLabelKeys: Record<EntryBatchAction, Parameters<ReturnType<typeof useI18n>["t"]>[0]> = {
+const actionLabelKeys: Record<
+  Exclude<EntryBatchAction, "add_tags">,
+  Parameters<ReturnType<typeof useI18n>["t"]>[0]
+> = {
   archive: "actions.archive",
   delete: "actions.delete",
   favorite: "actions.favorite",
@@ -46,12 +51,18 @@ const actionLabelKeys: Record<EntryBatchAction, Parameters<ReturnType<typeof use
   unpin: "actions.unpin"
 };
 
-export function BulkSelectionTimeline({ children, entryIds }: BulkSelectionTimelineProps) {
+export function BulkSelectionTimeline({
+  availableTags = [],
+  children,
+  entryIds
+}: BulkSelectionTimelineProps) {
   const router = useRouter();
   const { t } = useI18n();
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pendingAction, setPendingAction] = useState<EntryBatchAction | "">("");
+  const [showTagForm, setShowTagForm] = useState(false);
+  const [tagDraft, setTagDraft] = useState("");
   const [status, setStatus] = useState("");
   const statusTimeoutRef = useRef<number | null>(null);
   const selectedIdSet = new Set(selectedIds);
@@ -67,6 +78,13 @@ export function BulkSelectionTimeline({ children, entryIds }: BulkSelectionTimel
       setSelectionMode(false);
     }
   }, [entryIds]);
+
+  useEffect(() => {
+    if (!selectionMode) {
+      setShowTagForm(false);
+      setTagDraft("");
+    }
+  }, [selectionMode]);
 
   useEffect(() => {
     return () => {
@@ -109,6 +127,8 @@ export function BulkSelectionTimeline({ children, entryIds }: BulkSelectionTimel
   function exitSelectionMode() {
     setSelectedIds([]);
     setSelectionMode(false);
+    setShowTagForm(false);
+    setTagDraft("");
   }
 
   function selectAllVisible() {
@@ -160,6 +180,62 @@ export function BulkSelectionTimeline({ children, entryIds }: BulkSelectionTimel
       router.refresh();
     } catch (error) {
       setTransientStatus(error instanceof Error ? error.message : t("actions.batch_failed"));
+    } finally {
+      setPendingAction("");
+    }
+  }
+
+  async function handleAddTags(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (selectedIds.length === 0) {
+      setTransientStatus(t("actions.batch_empty"));
+      return;
+    }
+
+    const tags = normalizeTagList(tagDraft);
+
+    if (tags.length === 0) {
+      setTransientStatus(t("actions.tags_required"));
+      return;
+    }
+
+    setPendingAction("add_tags");
+    setStatus("");
+
+    try {
+      const response = await fetch("/api/v1/entries/batch", {
+        body: JSON.stringify({
+          action: "add_tags",
+          ids: selectedIds,
+          tags
+        }),
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            data?: BatchActionPayload;
+            error?: {
+              message?: string;
+            };
+          }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.error?.message || t("actions.tags_failed"));
+      }
+
+      const appliedCount = payload?.data?.matchedCount || selectedIds.length;
+
+      setTagDraft("");
+      setShowTagForm(false);
+      setTransientStatus(t("actions.batch_tags_added", { count: appliedCount }));
+      router.refresh();
+    } catch (error) {
+      setTransientStatus(error instanceof Error ? error.message : t("actions.tags_failed"));
     } finally {
       setPendingAction("");
     }
@@ -225,23 +301,88 @@ export function BulkSelectionTimeline({ children, entryIds }: BulkSelectionTimel
           </div>
 
           {selectionMode ? (
-            <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-1">
-              {batchActions.map((action) => (
+            <div className="space-y-2">
+              <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-1">
                 <button
-                  key={action}
                   type="button"
                   disabled={pendingAction !== "" || selectedCount === 0}
-                  onClick={() => void handleBatchAction(action)}
-                  className={cn(
-                    "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60",
-                    action === "delete"
-                      ? "border-rose-100/90 bg-rose-50/80 text-rose-600 hover:border-rose-200"
-                      : "border-white/80 bg-white/82 text-slate-700 hover:border-cyan-200 hover:text-cyan-700"
-                  )}
+                  onClick={() => setShowTagForm((current) => !current)}
+                  className="shrink-0 rounded-full border border-emerald-200/80 bg-emerald-50/88 px-3 py-1.5 text-sm font-medium text-emerald-700 transition hover:border-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {pendingAction === action ? t("actions.processing") : t(actionLabelKeys[action])}
+                  {t("actions.batch_add_tags")}
                 </button>
-              ))}
+
+                {batchActions.map((action) => (
+                  <button
+                    key={action}
+                    type="button"
+                    disabled={pendingAction !== "" || selectedCount === 0}
+                    onClick={() => void handleBatchAction(action)}
+                    className={cn(
+                      "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60",
+                      action === "delete"
+                        ? "border-rose-100/90 bg-rose-50/80 text-rose-600 hover:border-rose-200"
+                        : "border-white/80 bg-white/82 text-slate-700 hover:border-cyan-200 hover:text-cyan-700"
+                    )}
+                  >
+                    {pendingAction === action ? t("actions.processing") : t(actionLabelKeys[action])}
+                  </button>
+                ))}
+              </div>
+
+              {showTagForm ? (
+                <form
+                  className="rounded-[18px] border border-white/80 bg-white/82 p-3 shadow-[0_10px_22px_rgba(15,23,42,0.04)]"
+                  onSubmit={(event) => void handleAddTags(event)}
+                >
+                  <input
+                    value={tagDraft}
+                    onChange={(event) => setTagDraft(event.target.value)}
+                    placeholder={t("actions.tags_placeholder")}
+                    className="h-11 w-full rounded-[16px] border border-slate-200/80 bg-white/92 px-4 text-sm text-slate-800 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
+                  />
+
+                  {availableTags.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {availableTags.slice(0, 12).map((tag) => (
+                        <button
+                          key={`bulk-tag-${tag}`}
+                          type="button"
+                          onClick={() =>
+                            setTagDraft((current) =>
+                              normalizeTagList(`${current},${tag}`).join(", ")
+                            )
+                          }
+                          className="rounded-full border border-emerald-100/90 bg-emerald-50/80 px-2.5 py-1 text-[11px] font-medium text-emerald-700 transition hover:border-emerald-200"
+                        >
+                          #{tag}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="submit"
+                      disabled={pendingAction !== ""}
+                      className="rounded-full bg-[linear-gradient(135deg,#065f46,#10b981_58%,#34d399)] px-3 py-1.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)] transition disabled:cursor-wait disabled:opacity-70"
+                    >
+                      {pendingAction === "add_tags" ? t("actions.processing") : t("actions.save_tags")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pendingAction !== ""}
+                      onClick={() => {
+                        setShowTagForm(false);
+                        setTagDraft("");
+                      }}
+                      className="rounded-full border border-slate-200/80 bg-white/92 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 disabled:cursor-wait disabled:opacity-70"
+                    >
+                      {t("toolbar.clear")}
+                    </button>
+                  </div>
+                </form>
+              ) : null}
             </div>
           ) : null}
 

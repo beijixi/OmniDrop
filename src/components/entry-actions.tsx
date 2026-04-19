@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/components/i18n-provider";
-import { cn } from "@/lib/utils";
+import { cn, normalizeTagList } from "@/lib/utils";
 
 type EntryActionsProps = {
   align?: "left" | "right";
@@ -17,6 +17,7 @@ type EntryActionsProps = {
   isPinned?: boolean;
   inline?: boolean;
   messageText?: string | null;
+  tags?: string[];
 };
 
 type ShareResponse = {
@@ -33,7 +34,8 @@ export function EntryActions({
   isFavorite = false,
   isPinned = false,
   inline = false,
-  messageText = null
+  messageText = null,
+  tags = []
 }: EntryActionsProps) {
   const router = useRouter();
   const { t } = useI18n();
@@ -42,15 +44,21 @@ export function EntryActions({
   const [favorite, setFavorite] = useState(isFavorite);
   const [archived, setArchived] = useState(isArchived);
   const [pinned, setPinned] = useState(isPinned);
+  const [entryTags, setEntryTags] = useState(tags);
+  const [showTagEditor, setShowTagEditor] = useState(false);
+  const [tagDraft, setTagDraft] = useState(tags.join(", "));
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState("");
   const [loadingAction, setLoadingAction] = useState<
     | "archive"
+    | "clear_tags"
     | "cleanup_duplicates"
     | "delete"
+    | "edit_tags"
     | "favorite"
     | "pin"
     | "revoke"
+    | "save_tags"
     | "share_public"
     | "share_internal"
     | ""
@@ -75,6 +83,11 @@ export function EntryActions({
   useEffect(() => {
     setPinned(isPinned);
   }, [isPinned]);
+
+  useEffect(() => {
+    setEntryTags(tags);
+    setTagDraft(tags.join(", "));
+  }, [tags]);
 
   function setTransientStatus(nextStatus: string) {
     setStatus(nextStatus);
@@ -227,6 +240,7 @@ export function EntryActions({
     archived?: boolean;
     favorite?: boolean;
     pinned?: boolean;
+    tags?: string[];
   }) {
     const response = await fetch(`/api/v1/entries/${entryId}`, {
       method: "PATCH",
@@ -241,6 +255,7 @@ export function EntryActions({
           archivedAt?: string | null;
           isFavorite?: boolean;
           pinnedAt?: string | null;
+          tags?: string[];
         };
       };
       error?: {
@@ -255,13 +270,17 @@ export function EntryActions({
             ? t("actions.archive_failed")
             : typeof input.pinned === "boolean"
               ? t("actions.pin_failed")
-            : t("actions.favorite_failed"))
+              : Array.isArray(input.tags)
+                ? t("actions.tags_failed")
+                : t("actions.favorite_failed"))
       );
     }
 
     setFavorite(Boolean(payload.data.entry.isFavorite));
     setArchived(Boolean(payload.data.entry.archivedAt));
     setPinned(Boolean(payload.data.entry.pinnedAt));
+    setEntryTags(payload.data.entry.tags || []);
+    setTagDraft((payload.data.entry.tags || []).join(", "));
     router.refresh();
   }
 
@@ -318,6 +337,46 @@ export function EntryActions({
       setIsOpen(false);
     } catch (error) {
       setTransientStatus(error instanceof Error ? error.message : t("actions.pin_failed"));
+    } finally {
+      setLoadingAction("");
+    }
+  }
+
+  async function handleSaveTags(nextTags: string[]) {
+    setLoadingAction("save_tags");
+    setStatus("");
+
+    try {
+      await updateEntryState({
+        tags: nextTags
+      });
+      setTransientStatus(
+        nextTags.length > 0 ? t("actions.tags_saved") : t("actions.tags_cleared")
+      );
+      setShowTagEditor(false);
+    } catch (error) {
+      setTransientStatus(error instanceof Error ? error.message : t("actions.tags_failed"));
+    } finally {
+      setLoadingAction("");
+    }
+  }
+
+  async function handleSubmitTags(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await handleSaveTags(normalizeTagList(tagDraft));
+  }
+
+  async function handleClearTags() {
+    if (entryTags.length === 0) {
+      setTransientStatus(t("actions.tags_empty"));
+      return;
+    }
+
+    setLoadingAction("clear_tags");
+    setStatus("");
+
+    try {
+      await handleSaveTags([]);
     } finally {
       setLoadingAction("");
     }
@@ -417,6 +476,60 @@ export function EntryActions({
                 loading={loadingAction === "archive"}
                 onClick={() => void handleArchiveToggle()}
               />
+              <ActionMenuButton
+                icon={<TagIcon />}
+                label={t("actions.edit_tags")}
+                loading={loadingAction === "save_tags" || loadingAction === "clear_tags"}
+                onClick={() => {
+                  setShowTagEditor((current) => !current);
+                  setTagDraft(entryTags.join(", "));
+                }}
+              />
+
+              {showTagEditor ? (
+                <form
+                  className="rounded-[18px] border border-white/75 bg-white/78 p-3 shadow-[0_10px_22px_rgba(15,23,42,0.04)]"
+                  onSubmit={(event) => void handleSubmitTags(event)}
+                >
+                  {entryTags.length > 0 ? (
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {entryTags.map((tag) => (
+                        <span
+                          key={`${entryId}-${tag}`}
+                          className="rounded-full border border-emerald-100/90 bg-emerald-50/90 px-2.5 py-1 text-[11px] font-medium text-emerald-700"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <input
+                    value={tagDraft}
+                    onChange={(event) => setTagDraft(event.target.value)}
+                    placeholder={t("actions.tags_placeholder")}
+                    className="h-10 w-full rounded-[14px] border border-slate-200/80 bg-white/92 px-3 text-sm text-slate-800 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
+                  />
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="submit"
+                      disabled={loadingAction === "save_tags" || loadingAction === "clear_tags"}
+                      className="rounded-full bg-[linear-gradient(135deg,#065f46,#10b981_58%,#34d399)] px-3 py-1.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)] transition disabled:cursor-wait disabled:opacity-70"
+                    >
+                      {t("actions.save_tags")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={loadingAction === "save_tags" || loadingAction === "clear_tags"}
+                      onClick={() => void handleClearTags()}
+                      className="rounded-full border border-slate-200/80 bg-white/92 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 disabled:cursor-wait disabled:opacity-70"
+                    >
+                      {t("actions.clear_tags")}
+                    </button>
+                  </div>
+                </form>
+              ) : null}
 
               <div className="my-2 h-px bg-[linear-gradient(90deg,rgba(226,232,240,0),rgba(203,213,225,0.9),rgba(226,232,240,0))]" />
 
@@ -601,6 +714,19 @@ function UndoIcon() {
   return (
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path strokeLinecap="round" strokeLinejoin="round" d="M5.1 6.9V3.8L2.6 6.3l2.5 2.5V6.9H11a4.2 4.2 0 0 1 0 8.4H7.4" />
+    </svg>
+  );
+}
+
+function TagIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M10.4 4.2h4.1a1.3 1.3 0 0 1 1.3 1.3v4.1L9.7 15.7a1.4 1.4 0 0 1-2 0l-3.4-3.4a1.4 1.4 0 0 1 0-2l6.1-6.1Z"
+      />
+      <circle cx="13.4" cy="6.6" r="0.9" fill="currentColor" stroke="none" />
     </svg>
   );
 }

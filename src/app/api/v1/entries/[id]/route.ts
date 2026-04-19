@@ -2,7 +2,13 @@ import { revalidatePath } from "next/cache";
 
 import { apiError, apiErrorFromUnknown, apiOk } from "@/lib/api-response";
 import { serializeEntry } from "@/lib/api-serializers";
-import { cleanupDuplicateEntries, deleteEntry, getEntryById, updateEntryState } from "@/lib/entries";
+import {
+  cleanupDuplicateEntries,
+  deleteEntry,
+  getEntryById,
+  replaceEntryTags,
+  updateEntryState
+} from "@/lib/entries";
 import { getSettings } from "@/lib/settings";
 
 export const runtime = "nodejs";
@@ -64,26 +70,50 @@ export async function PATCH(request: Request, { params }: EntryRouteProps) {
       archived?: boolean;
       favorite?: boolean;
       pinned?: boolean;
+      tags?: string[];
     };
 
     if (
       typeof payload.archived !== "boolean" &&
       typeof payload.favorite !== "boolean" &&
-      typeof payload.pinned !== "boolean"
+      typeof payload.pinned !== "boolean" &&
+      !Array.isArray(payload.tags)
     ) {
       return apiError({
         code: "EMPTY_ENTRY_UPDATE",
-        message: "至少要更新一个状态字段。",
+        message: "至少要更新一个状态字段或标签。",
+        status: 400
+      });
+    }
+
+    let currentEntry = null;
+
+    if (
+      typeof payload.archived === "boolean" ||
+      typeof payload.favorite === "boolean" ||
+      typeof payload.pinned === "boolean"
+    ) {
+      currentEntry = await updateEntryState(params.id, {
+        archived: payload.archived,
+        favorite: payload.favorite,
+        pinned: payload.pinned
+      });
+    }
+
+    if (Array.isArray(payload.tags)) {
+      currentEntry = await replaceEntryTags(params.id, payload.tags);
+    }
+
+    if (!currentEntry) {
+      return apiError({
+        code: "EMPTY_ENTRY_UPDATE",
+        message: "至少要更新一个状态字段或标签。",
         status: 400
       });
     }
 
     const [entry, settings] = await Promise.all([
-      updateEntryState(params.id, {
-        archived: payload.archived,
-        favorite: payload.favorite,
-        pinned: payload.pinned
-      }),
+      Promise.resolve(currentEntry),
       getSettings()
     ]);
 
@@ -97,7 +127,7 @@ export async function PATCH(request: Request, { params }: EntryRouteProps) {
   } catch (error) {
     return apiErrorFromUnknown(error, {
       code: "UPDATE_ENTRY_FAILED",
-      message: "更新条目状态失败。",
+      message: "更新条目失败。",
       status: 400
     });
   }

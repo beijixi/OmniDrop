@@ -13,6 +13,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveEntryType } from "@/lib/file-types";
 import type { SavedUpload } from "@/lib/storage";
 import { removeStoredAssets, removeStoredFiles } from "@/lib/storage";
+import { normalizeTagNames } from "@/lib/tags";
 import { normalizeMessageText } from "@/lib/utils";
 
 const DEFAULT_ENTRY_PAGE_SIZE = 20;
@@ -20,6 +21,14 @@ const MAX_ENTRY_PAGE_SIZE = 50;
 
 export const entryInclude = {
   assets: {
+    orderBy: {
+      createdAt: "asc"
+    }
+  },
+  tags: {
+    include: {
+      tag: true
+    },
     orderBy: {
       createdAt: "asc"
     }
@@ -34,6 +43,7 @@ export type EntryWithRelations = Prisma.EntryGetPayload<{
 export type EntryFilters = {
   duplicatesOnly?: boolean;
   q?: string;
+  tag?: string;
   type?: string;
   view?: string;
 };
@@ -64,6 +74,7 @@ export type EntrySearchMatch = {
 } | null;
 
 export type EntryBatchAction =
+  | "add_tags"
   | "archive"
   | "delete"
   | "favorite"
@@ -343,8 +354,7 @@ export async function updateEntryState(
     },
     select: {
       archivedAt: true,
-      id: true
-      ,
+      id: true,
       pinnedAt: true
     }
   });
@@ -377,6 +387,110 @@ export async function updateEntryState(
     },
     data,
     include: entryInclude
+  });
+}
+
+export async function replaceEntryTags(entryId: string, tagNamesInput: string[]) {
+  const tagNames = normalizeTagNames(tagNamesInput);
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.entry.findUnique({
+      where: {
+        id: entryId
+      },
+      select: {
+        id: true,
+        tags: {
+          include: {
+            tag: true
+          }
+        }
+      }
+    });
+
+    if (!existing) {
+      throw new Error("ENTRY_NOT_FOUND");
+    }
+
+    const currentTagIdByName = new Map(existing.tags.map((item) => [item.tag.name, item.tagId]));
+    const currentTagNames = new Set(currentTagIdByName.keys());
+    const nextTagNames = new Set(tagNames);
+    const removedTagIds = [...currentTagIdByName.entries()]
+      .filter(([name]) => !nextTagNames.has(name))
+      .map(([, tagId]) => tagId);
+
+    if (tagNames.length > 0) {
+      await tx.tag.createMany({
+        data: tagNames.map((name) => ({ name })),
+        skipDuplicates: true
+      });
+    }
+
+    const nextTags =
+      tagNames.length > 0
+        ? await tx.tag.findMany({
+            where: {
+              name: {
+                in: tagNames
+              }
+            },
+            select: {
+              id: true,
+              name: true
+            }
+          })
+        : [];
+
+    if (removedTagIds.length > 0) {
+      await tx.entryTag.deleteMany({
+        where: {
+          entryId,
+          tagId: {
+            in: removedTagIds
+          }
+        }
+      });
+    }
+
+    const tagIdsToAdd = nextTags
+      .filter((tag) => !currentTagNames.has(tag.name))
+      .map((tag) => tag.id);
+
+    if (tagIdsToAdd.length > 0) {
+      await tx.entryTag.createMany({
+        data: tagIdsToAdd.map((tagId) => ({
+          entryId,
+          tagId
+        })),
+        skipDuplicates: true
+      });
+    }
+
+    if (removedTagIds.length > 0) {
+      await tx.tag.deleteMany({
+        where: {
+          entries: {
+            none: {}
+          },
+          id: {
+            in: removedTagIds
+          }
+        }
+      });
+    }
+
+    const updated = await tx.entry.findUnique({
+      where: {
+        id: entryId
+      },
+      include: entryInclude
+    });
+
+    if (!updated) {
+      throw new Error("ENTRY_NOT_FOUND");
+    }
+
+    return updated;
   });
 }
 
@@ -429,11 +543,103 @@ export async function deleteEntry(entryId: string) {
   );
 }
 
-export async function applyEntryBatchAction(entryIdsInput: string[], action: EntryBatchAction) {
+export async function applyEntryBatchAction(
+  entryIdsInput: string[],
+  action: EntryBatchAction,
+  input?: {
+    tags?: string[];
+  }
+) {
   const entryIds = normalizeEntryIds(entryIdsInput);
 
   if (entryIds.length === 0) {
     throw new Error("EMPTY_ENTRY_BATCH");
+  }
+
+  if (action === "add_tags") {
+    const tagNames = normalizeTagNames(input?.tags);
+
+    if (tagNames.length === 0) {
+      throw new Error("EMPTY_TAGS");
+    }
+
+    const existingEntries = await prisma.entry.findMany({
+      where: {
+        id: {
+          in: entryIds
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (existingEntries.length === 0) {
+      throw new Error("ENTRY_NOT_FOUND");
+    }
+
+    const existingEntryIds = existingEntries.map((entry) => entry.id);
+
+    return prisma.$transaction(async (tx) => {
+      await tx.tag.createMany({
+        data: tagNames.map((name) => ({ name })),
+        skipDuplicates: true
+      });
+
+      const tags = await tx.tag.findMany({
+        where: {
+          name: {
+            in: tagNames
+          }
+        },
+        select: {
+          id: true,
+          name: true
+        }
+      });
+
+      const existingRelations = await tx.entryTag.findMany({
+        where: {
+          entryId: {
+            in: existingEntryIds
+          },
+          tagId: {
+            in: tags.map((tag) => tag.id)
+          }
+        },
+        select: {
+          entryId: true,
+          tagId: true
+        }
+      });
+
+      const existingRelationSet = new Set(
+        existingRelations.map((relation) => `${relation.entryId}:${relation.tagId}`)
+      );
+      const missingRelations = existingEntryIds.flatMap((entryId) =>
+        tags
+          .filter((tag) => !existingRelationSet.has(`${entryId}:${tag.id}`))
+          .map((tag) => ({
+            entryId,
+            tagId: tag.id
+          }))
+      );
+      const changedEntryIds = new Set(missingRelations.map((relation) => relation.entryId));
+
+      if (missingRelations.length > 0) {
+        await tx.entryTag.createMany({
+          data: missingRelations,
+          skipDuplicates: true
+        });
+      }
+
+      return {
+        action,
+        changedCount: changedEntryIds.size,
+        matchedCount: existingEntryIds.length,
+        tagNames
+      };
+    });
   }
 
   if (action === "delete") {
@@ -767,6 +973,7 @@ export async function getSharedEntry(token: string): Promise<EntryWithRelations 
 
 function buildEntryWhereParts(filters: EntryFilters): Prisma.EntryWhereInput[] {
   const query = filters.q?.trim();
+  const tag = normalizeTagNames(filters.tag || "").at(0);
   const type = isEntryType(filters.type) ? filters.type : undefined;
   const view = normalizeEntryView(filters.view);
   const whereParts: Prisma.EntryWhereInput[] = [];
@@ -817,8 +1024,32 @@ function buildEntryWhereParts(filters: EntryFilters): Prisma.EntryWhereInput[] {
             contains: query,
             mode: "insensitive"
           }
+        },
+        {
+          tags: {
+            some: {
+              tag: {
+                name: {
+                  contains: query,
+                  mode: "insensitive"
+                }
+              }
+            }
+          }
         }
       ]
+    });
+  }
+
+  if (tag) {
+    whereParts.push({
+      tags: {
+        some: {
+          tag: {
+            name: tag
+          }
+        }
+      }
     });
   }
 

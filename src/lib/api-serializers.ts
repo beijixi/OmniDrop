@@ -36,6 +36,18 @@ export function serializeEntry(
     type: entry.type,
     message: entry.message,
     note: entry.note,
+    linkPreview: entry.canonicalUrl
+      ? {
+          contentText: entry.linkContentText,
+          description: entry.linkDescription,
+          fetchedAt: entry.linkFetchedAt?.toISOString() || null,
+          imageUrl: entry.linkImageUrl,
+          publishedAt: entry.linkPublishedAt?.toISOString() || null,
+          siteName: entry.linkSiteName,
+          title: entry.linkTitle,
+          url: entry.canonicalUrl
+        }
+      : null,
     isFavorite: entry.isFavorite,
     archivedAt: entry.archivedAt?.toISOString() || null,
     pinnedAt: entry.pinnedAt?.toISOString() || null,

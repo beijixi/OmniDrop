@@ -11,6 +11,8 @@ type SharedButtonProps = {
 };
 
 type CopyTextButtonProps = SharedButtonProps & {
+  copiedLabel?: string;
+  idleLabel?: string;
   value: string;
 };
 
@@ -19,7 +21,12 @@ type CopyImageButtonProps = SharedButtonProps & {
   src: string;
 };
 
-export function CopyTextButton({ value, className }: CopyTextButtonProps) {
+export function CopyTextButton({
+  value,
+  className,
+  copiedLabel,
+  idleLabel
+}: CopyTextButtonProps) {
   const { t } = useI18n();
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
 
@@ -42,8 +49,8 @@ export function CopyTextButton({ value, className }: CopyTextButtonProps) {
       onClick={() => void handleCopy()}
       className={cn("entry-icon-button", className)}
       disabled={state === "busy"}
-      aria-label={labelForTextState(state, t)}
-      title={labelForTextState(state, t)}
+      aria-label={labelForTextState(state, t, idleLabel, copiedLabel)}
+      title={labelForTextState(state, t, idleLabel, copiedLabel)}
     >
       {renderIcon(state, <CopyIcon />)}
     </button>
@@ -123,21 +130,23 @@ function renderIcon(state: "idle" | "busy" | "done" | "error", idleIcon: ReactNo
 
 function labelForTextState(
   state: "idle" | "busy" | "done" | "error",
-  t: ReturnType<typeof useI18n>["t"]
+  t: ReturnType<typeof useI18n>["t"],
+  idleLabel?: string,
+  copiedLabel?: string
 ) {
   if (state === "busy") {
     return t("actions.processing");
   }
 
   if (state === "done") {
-    return t("actions.text_copied");
+    return copiedLabel || t("actions.text_copied");
   }
 
   if (state === "error") {
     return t("actions.copy_failed");
   }
 
-  return t("actions.copy_text");
+  return idleLabel || t("actions.copy_text");
 }
 
 function labelForImageState(

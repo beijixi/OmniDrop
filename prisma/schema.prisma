@@ -39,6 +39,13 @@ model Entry {
   note      String?     @db.Text
   messageFingerprint String? @db.VarChar(64)
   canonicalUrl String?   @db.VarChar(2048)
+  linkTitle String?      @db.VarChar(300)
+  linkDescription String? @db.Text
+  linkSiteName String?   @db.VarChar(120)
+  linkImageUrl String?   @db.VarChar(2048)
+  linkContentText String? @db.Text
+  linkFetchedAt DateTime?
+  linkPublishedAt DateTime?
   pinnedAt DateTime?
   isFavorite Boolean    @default(false)
   archivedAt DateTime?
@@ -57,6 +64,7 @@ model Entry {
   @@index([archivedAt, createdAt(sort: Desc)])
   @@index([messageFingerprint, createdAt(sort: Desc)])
   @@index([canonicalUrl, createdAt(sort: Desc)])
+  @@index([linkFetchedAt, createdAt(sort: Desc)])
 }
 
 model Asset {

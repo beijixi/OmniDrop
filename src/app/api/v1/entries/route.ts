@@ -4,6 +4,7 @@ import { apiError, apiErrorFromUnknown, apiOk } from "@/lib/api-response";
 import { serializeEntry } from "@/lib/api-serializers";
 import { indexEntryAssetsSearchText } from "@/lib/asset-search-index";
 import { createEntriesBatch, listEntriesPage } from "@/lib/entries";
+import { indexEntryLinkPreviews } from "@/lib/link-preview";
 import { resolveSenderFromRequest } from "@/lib/request-source";
 import { getSettings } from "@/lib/settings";
 import { saveIncomingFiles } from "@/lib/storage";
@@ -99,6 +100,12 @@ export async function POST(request: Request) {
       await indexEntryAssetsSearchText(entries);
     } catch (error) {
       console.error("Failed to index uploaded asset text", error);
+    }
+
+    try {
+      await indexEntryLinkPreviews(entries);
+    } catch (error) {
+      console.error("Failed to index entry link previews", error);
     }
 
     const settings = await getSettings();

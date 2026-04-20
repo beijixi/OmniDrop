@@ -1,14 +1,14 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { CopyImageButton } from "@/components/clipboard-buttons";
+import { CopyImageButton, CopyTextButton } from "@/components/clipboard-buttons";
 import { EntryActions } from "@/components/entry-actions";
 import { getAssetPreview } from "@/lib/asset-previews";
 import type { AppLocale } from "@/lib/i18n";
 import { getFileVisual } from "@/lib/file-types";
 import type { EntrySearchSnippetSource, EntryWithRelations, TimelineEntry } from "@/lib/entries";
 import { t } from "@/lib/i18n";
-import { cn, formatBytes, formatDateTime, isIpv4Address } from "@/lib/utils";
+import { cn, extractFirstExternalUrl, formatBytes, formatDateTime, normalizeExternalUrl, isIpv4Address } from "@/lib/utils";
 
 type EntryCardProps = {
   entry: EntryWithRelations & Partial<Pick<TimelineEntry, "duplicateSummary" | "searchMatch">>;
@@ -50,6 +50,7 @@ export async function EntryCard({
     entry.senderHost && visibleIp
       ? `${entry.senderHost} · ${visibleIp}`
       : entry.senderHost || visibleIp || t(locale, "entry.local_source");
+  const copyableLink = entry.canonicalUrl || extractFirstExternalUrl(entry.message);
   const filePreviews = await Promise.all(
     nonImageAssets.map(async (asset) => ({
       asset,
@@ -96,6 +97,7 @@ export async function EntryCard({
                   isArchived={Boolean(entry.archivedAt)}
                   isFavorite={entry.isFavorite}
                   isPinned={Boolean(entry.pinnedAt)}
+                  linkUrl={copyableLink}
                   messageText={entry.message}
                   note={entry.note}
                   tags={entry.tags.map((item) => item.tag.name)}
@@ -225,6 +227,21 @@ export async function EntryCard({
 
                   {entry.message ? (
                     <section>
+                      {copyableLink ? (
+                        <div className={cn("mb-2 flex", align === "right" ? "justify-end" : "justify-start")}>
+                          <CopyTextButton
+                            value={copyableLink}
+                            idleLabel={t(locale, "actions.copy_link")}
+                            copiedLabel={t(locale, "actions.link_copied")}
+                            className={cn(
+                              "h-8 w-8 shrink-0",
+                              align === "right"
+                                ? "border-white/20 bg-white/10 text-white hover:border-white/35 hover:text-white"
+                                : "border-cyan-100/90 bg-white/88 text-cyan-700 hover:border-cyan-200 hover:text-cyan-800"
+                            )}
+                          />
+                        </div>
+                      ) : null}
                       <div
                         className={cn(
                           "text-[15px] leading-6 sm:leading-7",
@@ -235,6 +252,78 @@ export async function EntryCard({
                           {renderMessageText(entry.message, align)}
                         </p>
                       </div>
+                    </section>
+                  ) : null}
+
+                  {entry.canonicalUrl ? (
+                    <section>
+                      <Link
+                        href={entry.canonicalUrl}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className={cn(
+                          "block overflow-hidden rounded-[20px] border transition hover:-translate-y-[1px] sm:rounded-[24px]",
+                          align === "right"
+                            ? "border-white/14 bg-white/8"
+                            : "border-cyan-100/80 bg-cyan-50/58 hover:border-cyan-200"
+                        )}
+                      >
+                        {entry.linkImageUrl ? (
+                          <img
+                            src={entry.linkImageUrl}
+                            alt={entry.linkTitle || entry.linkSiteName || entry.canonicalUrl}
+                            className="h-40 w-full object-cover sm:h-48"
+                          />
+                        ) : null}
+
+                        <div className="space-y-2 px-4 py-3.5">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                            {entry.linkSiteName ? (
+                              <span className={cn(align === "right" ? "text-white/70" : "text-slate-500")}>
+                                {entry.linkSiteName}
+                              </span>
+                            ) : null}
+                            {entry.linkPublishedAt ? (
+                              <>
+                                {entry.linkSiteName ? <span>·</span> : null}
+                                <span className={cn(align === "right" ? "text-white/70" : "text-slate-500")}>
+                                  {formatDateTime(entry.linkPublishedAt, locale)}
+                                </span>
+                              </>
+                            ) : null}
+                          </div>
+
+                          <div>
+                            <p
+                              className={cn(
+                                "text-base font-semibold leading-7",
+                                align === "right" ? "text-white" : "text-slate-900"
+                              )}
+                            >
+                              {entry.linkTitle || deriveLinkTitle(entry.canonicalUrl)}
+                            </p>
+                            {entry.linkDescription ? (
+                              <p
+                                className={cn(
+                                  "mt-1 text-sm leading-6",
+                                  align === "right" ? "text-white/82" : "text-slate-600"
+                                )}
+                              >
+                                {entry.linkDescription}
+                              </p>
+                            ) : null}
+                          </div>
+
+                          <p
+                            className={cn(
+                              "truncate text-xs",
+                              align === "right" ? "text-white/65" : "text-cyan-700"
+                            )}
+                          >
+                            {entry.canonicalUrl}
+                          </p>
+                        </div>
+                      </Link>
                     </section>
                   ) : null}
 
@@ -552,17 +641,6 @@ function renderMessageText(message: string, align: "left" | "right"): ReactNode 
   return nodes;
 }
 
-function normalizeExternalUrl(input: string): string | null {
-  const candidate = input.startsWith("www.") ? `https://${input}` : input;
-
-  try {
-    const parsed = new URL(candidate);
-    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : null;
-  } catch {
-    return null;
-  }
-}
-
 function splitTrailingUrlText(value: string) {
   let cleanUrl = value;
   let trailingText = "";
@@ -605,6 +683,15 @@ function splitTrailingUrlText(value: string) {
     cleanUrl,
     trailingText
   };
+}
+
+function deriveLinkTitle(url: string) {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }
 
 function countChar(value: string, character: string) {
@@ -652,6 +739,8 @@ function getSearchSourceLabel(locale: AppLocale, source: EntrySearchSnippetSourc
       return t(locale, "search.source_asset_name");
     case "assetText":
       return t(locale, "search.source_asset_text");
+    case "link":
+      return t(locale, "search.source_link");
     case "note":
       return t(locale, "search.source_note");
     case "sender":

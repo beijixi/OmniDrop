@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/components/i18n-provider";
-import { cn, normalizeTagList } from "@/lib/utils";
+import { cn, extractFirstExternalUrl, normalizeTagList } from "@/lib/utils";
 
 type EntryActionsProps = {
   align?: "left" | "right";
@@ -16,6 +16,7 @@ type EntryActionsProps = {
   isFavorite?: boolean;
   isPinned?: boolean;
   inline?: boolean;
+  linkUrl?: string | null;
   messageText?: string | null;
   note?: string | null;
   tags?: string[];
@@ -35,12 +36,14 @@ export function EntryActions({
   isFavorite = false,
   isPinned = false,
   inline = false,
+  linkUrl = null,
   messageText = null,
   note = null,
   tags = []
 }: EntryActionsProps) {
   const router = useRouter();
   const { t } = useI18n();
+  const copyableLink = linkUrl || extractFirstExternalUrl(messageText);
   const [shareLinks, setShareLinks] = useState<ShareResponse | null>(null);
   const [hasShareLink, setHasShareLink] = useState(hasActiveShare);
   const [favorite, setFavorite] = useState(isFavorite);
@@ -243,6 +246,21 @@ export function EntryActions({
     try {
       await navigator.clipboard.writeText(messageText);
       setTransientStatus(t("actions.text_copied"));
+    } catch {
+      setTransientStatus(t("actions.copy_failed"));
+    }
+  }
+
+  async function handleCopyLink() {
+    if (!copyableLink) {
+      return;
+    }
+
+    setStatus("");
+
+    try {
+      await navigator.clipboard.writeText(copyableLink);
+      setTransientStatus(t("actions.link_copied"));
     } catch {
       setTransientStatus(t("actions.copy_failed"));
     }
@@ -622,6 +640,14 @@ export function EntryActions({
 
               <div className="my-2 h-px bg-[linear-gradient(90deg,rgba(226,232,240,0),rgba(203,213,225,0.9),rgba(226,232,240,0))]" />
 
+              {copyableLink ? (
+                <ActionMenuButton
+                  icon={<LinkIcon />}
+                  label={t("actions.copy_link")}
+                  onClick={() => void handleCopyLink()}
+                />
+              ) : null}
+
               {messageText ? (
                 <ActionMenuButton
                   icon={<CopyIcon />}
@@ -795,6 +821,16 @@ function HomeIcon() {
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path strokeLinecap="round" strokeLinejoin="round" d="M4.4 8.2 10 3.9l5.6 4.3V15a1.2 1.2 0 0 1-1.2 1.2H5.6A1.2 1.2 0 0 1 4.4 15V8.2Z" />
       <path strokeLinecap="round" d="M8.1 16.2v-4.1a.9.9 0 0 1 .9-.9h2a.9.9 0 0 1 .9.9v4.1" />
+    </svg>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.1 11.9 6.2 13.8a2.6 2.6 0 1 1-3.7-3.7l2.8-2.8a2.6 2.6 0 0 1 3.7 0" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m11.9 8.1 1.9-1.9a2.6 2.6 0 1 1 3.7 3.7l-2.8 2.8a2.6 2.6 0 0 1-3.7 0" />
+      <path strokeLinecap="round" d="m7.1 12.9 5.8-5.8" />
     </svg>
   );
 }

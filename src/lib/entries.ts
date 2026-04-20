@@ -59,7 +59,13 @@ export type EntryPageResult = {
   nextCursor: string | null;
 };
 
-export type EntrySearchSnippetSource = "assetName" | "assetText" | "message" | "note" | "sender";
+export type EntrySearchSnippetSource =
+  | "assetName"
+  | "assetText"
+  | "link"
+  | "message"
+  | "note"
+  | "sender";
 
 export type EntrySearchSnippet = {
   assetName?: string;
@@ -1000,6 +1006,30 @@ function buildEntryWhereParts(filters: EntryFilters): Prisma.EntryWhereInput[] {
           }
         },
         {
+          linkTitle: {
+            contains: query,
+            mode: "insensitive"
+          }
+        },
+        {
+          linkDescription: {
+            contains: query,
+            mode: "insensitive"
+          }
+        },
+        {
+          linkSiteName: {
+            contains: query,
+            mode: "insensitive"
+          }
+        },
+        {
+          linkContentText: {
+            contains: query,
+            mode: "insensitive"
+          }
+        },
+        {
           assets: {
             some: {
               OR: [
@@ -1522,6 +1552,21 @@ function buildEntrySearchMatch(entry: EntryWithRelations, query?: string): Entry
       : null
   );
 
+  const linkSnippetValue = [entry.linkTitle, entry.linkDescription, entry.linkSiteName, entry.linkContentText]
+    .filter(Boolean)
+    .join(" · ");
+  const linkSnippet = linkSnippetValue
+    ? createSearchSnippet(linkSnippetValue, normalizedQuery, { compactWhitespace: true })
+    : null;
+  pushSnippet(
+    linkSnippet
+      ? {
+          source: "link",
+          text: linkSnippet
+        }
+      : null
+  );
+
   const senderSnippet = [entry.senderName, entry.senderHost, entry.senderIp].filter(Boolean).join(" · ");
   const matchedSenderSnippet = senderSnippet ? createSearchSnippet(senderSnippet, normalizedQuery) : null;
   pushSnippet(
@@ -1605,6 +1650,8 @@ function getSourceRelevance(source: EntrySearchSnippetSource) {
       return 40;
     case "note":
       return 35;
+    case "link":
+      return 32;
     case "assetName":
       return 30;
     case "assetText":

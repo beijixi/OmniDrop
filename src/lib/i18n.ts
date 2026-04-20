@@ -79,12 +79,14 @@ export type MessageKey =
   | "entry.open_new_window"
   | "search.matches"
   | "search.source_message"
+  | "search.source_link"
   | "search.source_note"
   | "search.source_asset_name"
   | "search.source_asset_text"
   | "search.source_sender"
   | "actions.processing"
   | "actions.copy_share"
+  | "actions.copy_link"
   | "actions.copy_text"
   | "actions.copy_image"
   | "actions.more"
@@ -107,6 +109,7 @@ export type MessageKey =
   | "actions.copy_public_share"
   | "actions.copy_internal_share"
   | "actions.text_copied"
+  | "actions.link_copied"
   | "actions.image_copied"
   | "actions.favorite"
   | "actions.unfavorite"
@@ -319,6 +322,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "entry.download": "下载",
     "entry.open_new_window": "新窗口打开",
     "search.matches": "命中来源",
+    "search.source_link": "链接内容",
     "search.source_message": "正文",
     "search.source_note": "备注",
     "search.source_asset_name": "文件名",
@@ -326,6 +330,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "search.source_sender": "发送来源",
     "actions.processing": "处理中...",
     "actions.copy_share": "复制分享链接",
+    "actions.copy_link": "复制链接",
     "actions.copy_text": "复制文本",
     "actions.copy_image": "复制图片",
     "actions.more": "更多操作",
@@ -348,6 +353,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.copy_public_share": "公网链接",
     "actions.copy_internal_share": "内网链接",
     "actions.text_copied": "文本已复制",
+    "actions.link_copied": "链接已复制",
     "actions.image_copied": "图片已复制",
     "actions.favorite": "加入收藏",
     "actions.unfavorite": "取消收藏",
@@ -557,6 +563,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "entry.download": "Download",
     "entry.open_new_window": "Open in new window",
     "search.matches": "Matches",
+    "search.source_link": "Link",
     "search.source_message": "Message",
     "search.source_note": "Note",
     "search.source_asset_name": "File name",
@@ -564,6 +571,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "search.source_sender": "Sender",
     "actions.processing": "Working...",
     "actions.copy_share": "Copy share link",
+    "actions.copy_link": "Copy link",
     "actions.copy_text": "Copy text",
     "actions.copy_image": "Copy image",
     "actions.more": "More actions",
@@ -586,6 +594,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.copy_public_share": "Public link",
     "actions.copy_internal_share": "Internal link",
     "actions.text_copied": "Text copied",
+    "actions.link_copied": "Link copied",
     "actions.image_copied": "Image copied",
     "actions.favorite": "Add to favorites",
     "actions.unfavorite": "Remove favorite",

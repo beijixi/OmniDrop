@@ -88,3 +88,86 @@ export function normalizeTagList(raw: string): string[] {
 export function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
 }
+
+export function normalizeExternalUrl(input: string): string | null {
+  const candidate = input.startsWith("www.") ? `https://${input}` : input;
+
+  try {
+    const parsed = new URL(candidate);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function extractExternalUrls(message: string | null | undefined): string[] {
+  if (!message) {
+    return [];
+  }
+
+  const matches = [...message.matchAll(/(?:https?:\/\/|www\.)[^\s<]+/gi)];
+  const urls: string[] = [];
+
+  for (const match of matches) {
+    const rawUrl = match[0];
+
+    if (!rawUrl) {
+      continue;
+    }
+
+    const { cleanUrl } = splitTrailingUrlText(rawUrl);
+    const normalizedUrl = normalizeExternalUrl(cleanUrl);
+
+    if (normalizedUrl) {
+      urls.push(normalizedUrl);
+    }
+  }
+
+  return [...new Set(urls)];
+}
+
+export function extractFirstExternalUrl(message: string | null | undefined): string | null {
+  return extractExternalUrls(message)[0] || null;
+}
+
+function splitTrailingUrlText(value: string) {
+  let cleanUrl = value;
+  let trailingText = "";
+
+  while (cleanUrl.length > 0) {
+    const lastCharacter = cleanUrl.at(-1);
+
+    if (!lastCharacter) {
+      break;
+    }
+
+    if (".,!?;:".includes(lastCharacter)) {
+      trailingText = `${lastCharacter}${trailingText}`;
+      cleanUrl = cleanUrl.slice(0, -1);
+      continue;
+    }
+
+    if (lastCharacter === ")" && countChar(cleanUrl, ")") > countChar(cleanUrl, "(")) {
+      trailingText = `${lastCharacter}${trailingText}`;
+      cleanUrl = cleanUrl.slice(0, -1);
+      continue;
+    }
+
+    if (lastCharacter === "]" && countChar(cleanUrl, "]") > countChar(cleanUrl, "[")) {
+      trailingText = `${lastCharacter}${trailingText}`;
+      cleanUrl = cleanUrl.slice(0, -1);
+      continue;
+    }
+
+    break;
+  }
+
+  return {
+    cleanUrl,
+    trailingText
+  };
+}
+
+function countChar(value: string, character: string) {
+  return [...value].filter((item) => item === character).length;
+}

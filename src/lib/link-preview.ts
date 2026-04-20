@@ -3,6 +3,8 @@ import { lookup } from "node:dns/promises";
 import { prisma } from "@/lib/prisma";
 import { extractFirstExternalUrl, isIpv4Address, isPrivateIpv4Address } from "@/lib/utils";
 
+export type LinkFetchStatus = "BLOCKED" | "FAILED" | "IDLE" | "PENDING" | "PROCESSING" | "SUCCESS";
+
 type LinkPreviewRecord = {
   description: string | null;
   imageUrl: string | null;
@@ -17,6 +19,7 @@ type IndexLinkPreviewEntry = {
   canonicalUrl: string | null;
   id: string;
   linkFetchedAt?: Date | null;
+  linkFetchStatus?: string | null;
   message: string | null;
 };
 
@@ -24,7 +27,14 @@ type IndexLinkPreviewOptions = {
   force?: boolean;
 };
 
+type BackfillLinkPreviewOptions = {
+  batchSize?: number;
+  force?: boolean;
+  limit?: number;
+};
+
 const FETCH_TIMEOUT_MS = 7000;
+const MAX_BACKFILL_BATCH_SIZE = 100;
 const MAX_HTML_BYTES = 800_000;
 
 export async function indexEntryLinkPreviews(
@@ -35,15 +45,48 @@ export async function indexEntryLinkPreviews(
   let failed = 0;
 
   for (const entry of entries) {
-    if (!options.force && entry.linkFetchedAt) {
+    if (!options.force && entry.linkFetchStatus === "SUCCESS") {
       continue;
     }
 
-    const linkUrl = entry.canonicalUrl || extractFirstExternalUrl(entry.message);
+    const linkUrl = resolveEntryLinkUrl(entry);
 
     if (!linkUrl) {
+      if (options.force || (entry.linkFetchStatus && entry.linkFetchStatus !== "IDLE")) {
+        await prisma.entry.update({
+          where: {
+            id: entry.id
+          },
+          data: {
+            canonicalUrl: null,
+            linkContentText: null,
+            linkDescription: null,
+            linkFetchError: null,
+            linkFetchedAt: null,
+            linkFetchRequestedAt: null,
+            linkFetchStatus: "IDLE",
+            linkImageUrl: null,
+            linkPublishedAt: null,
+            linkSiteName: null,
+            linkTitle: null
+          }
+        });
+      }
+
       continue;
     }
+
+    await prisma.entry.update({
+      where: {
+        id: entry.id
+      },
+      data: {
+        canonicalUrl: linkUrl,
+        linkFetchError: null,
+        linkFetchRequestedAt: new Date(),
+        linkFetchStatus: "PROCESSING"
+      }
+    });
 
     try {
       const preview = await fetchLinkPreview(linkUrl);
@@ -56,7 +99,9 @@ export async function indexEntryLinkPreviews(
           canonicalUrl: preview.url,
           linkContentText: preview.textContent,
           linkDescription: preview.description,
+          linkFetchError: null,
           linkFetchedAt: new Date(),
+          linkFetchStatus: "SUCCESS",
           linkImageUrl: preview.imageUrl,
           linkPublishedAt: preview.publishedAt,
           linkSiteName: preview.siteName,
@@ -68,15 +113,122 @@ export async function indexEntryLinkPreviews(
       failed += 1;
       console.error(`Failed to index link preview for entry ${entry.id}`, error);
 
+      const errorCode = error instanceof Error ? error.message : "LINK_FETCH_FAILED";
+      const status = errorCode.startsWith("LINK_FETCH_BLOCKED") ? "BLOCKED" : "FAILED";
+
       await prisma.entry.update({
         where: {
           id: entry.id
         },
         data: {
-          linkFetchedAt: new Date()
+          linkFetchError: errorCode.slice(0, 240),
+          linkFetchedAt: null,
+          linkFetchStatus: status
         }
       });
     }
+  }
+
+  return {
+    failed,
+    indexed
+  };
+}
+
+export async function refreshEntryLinkPreview(entryId: string) {
+  const entry = await prisma.entry.findUnique({
+    where: {
+      id: entryId
+    },
+    select: {
+      canonicalUrl: true,
+      id: true,
+      linkFetchStatus: true,
+      message: true
+    }
+  });
+
+  if (!entry) {
+    throw new Error("ENTRY_NOT_FOUND");
+  }
+
+  await indexEntryLinkPreviews([entry], {
+    force: true
+  });
+}
+
+export async function backfillLinkPreviews(options: BackfillLinkPreviewOptions = {}) {
+  const batchSize = Math.max(1, Math.min(options.batchSize ?? 20, MAX_BACKFILL_BATCH_SIZE));
+  const limit = options.limit && options.limit > 0 ? options.limit : Infinity;
+  let cursorId: string | undefined;
+  let indexed = 0;
+  let failed = 0;
+
+  while (indexed + failed < limit) {
+    const remaining = Number.isFinite(limit)
+      ? Math.min(batchSize, Math.max(1, limit - indexed - failed))
+      : batchSize;
+
+    const entries = await prisma.entry.findMany({
+      where: {
+        ...(cursorId
+          ? {
+              id: {
+                gt: cursorId
+              }
+            }
+          : {}),
+        OR: [
+          {
+            canonicalUrl: {
+              not: null
+            }
+          },
+          {
+            message: {
+              contains: "http",
+              mode: "insensitive"
+            }
+          },
+          {
+            message: {
+              contains: "www.",
+              mode: "insensitive"
+            }
+          }
+        ],
+        ...(options.force
+          ? {}
+          : {
+              linkFetchStatus: {
+                not: "SUCCESS"
+              }
+            })
+      },
+      orderBy: {
+        id: "asc"
+      },
+      select: {
+        canonicalUrl: true,
+        id: true,
+        linkFetchedAt: true,
+        linkFetchStatus: true,
+        message: true
+      },
+      take: remaining
+    });
+
+    if (entries.length === 0) {
+      break;
+    }
+
+    const result = await indexEntryLinkPreviews(entries, {
+      force: true
+    });
+
+    indexed += result.indexed;
+    failed += result.failed;
+    cursorId = entries[entries.length - 1]?.id;
   }
 
   return {
@@ -89,7 +241,7 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreviewRecord> 
   await assertSafePreviewUrl(url);
 
   const controller = new AbortController();
-  const timeoutId = windowSafeSetTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
     const response = await fetch(url, {
@@ -126,6 +278,10 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreviewRecord> 
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function resolveEntryLinkUrl(entry: Pick<IndexLinkPreviewEntry, "canonicalUrl" | "message">) {
+  return entry.canonicalUrl || extractFirstExternalUrl(entry.message);
 }
 
 async function assertSafePreviewUrl(rawUrl: string) {
@@ -299,8 +455,4 @@ function isPrivateIpv6Address(value: string) {
     normalized.startsWith("fd") ||
     normalized.startsWith("fe80:")
   );
-}
-
-function windowSafeSetTimeout(handler: () => void, timeoutMs: number) {
-  return globalThis.setTimeout(handler, timeoutMs);
 }

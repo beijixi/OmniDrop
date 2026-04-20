@@ -44,6 +44,9 @@ model Entry {
   linkSiteName String?   @db.VarChar(120)
   linkImageUrl String?   @db.VarChar(2048)
   linkContentText String? @db.Text
+  linkFetchStatus String @default("IDLE") @db.VarChar(24)
+  linkFetchError String? @db.VarChar(240)
+  linkFetchRequestedAt DateTime?
   linkFetchedAt DateTime?
   linkPublishedAt DateTime?
   pinnedAt DateTime?
@@ -65,6 +68,7 @@ model Entry {
   @@index([messageFingerprint, createdAt(sort: Desc)])
   @@index([canonicalUrl, createdAt(sort: Desc)])
   @@index([linkFetchedAt, createdAt(sort: Desc)])
+  @@index([linkFetchStatus, createdAt(sort: Desc)])
 }
 
 model Asset {

@@ -9,6 +9,7 @@ import {
   replaceEntryTags,
   updateEntryState
 } from "@/lib/entries";
+import { refreshEntryLinkPreview } from "@/lib/link-preview";
 import { getSettings } from "@/lib/settings";
 
 export const runtime = "nodejs";
@@ -143,19 +144,46 @@ export async function POST(request: Request, { params }: EntryRouteProps) {
       action?: string;
     };
 
-    if (payload.action !== "cleanup_duplicates") {
+    if (payload.action === "cleanup_duplicates") {
+      const result = await cleanupDuplicateEntries(params.id);
+
+      revalidatePath("/");
+      revalidatePath("/duplicates");
+
+      return apiOk(result);
+    }
+
+    if (payload.action === "refresh_link_preview") {
+      await refreshEntryLinkPreview(params.id);
+
+      const [entry, settings] = await Promise.all([getEntryById(params.id), getSettings()]);
+
+      if (!entry) {
+        return apiError({
+          code: "ENTRY_NOT_FOUND",
+          message: "条目不存在。",
+          status: 404
+        });
+      }
+
+      revalidatePath("/");
+      revalidatePath("/collections");
+
+      return apiOk({
+        entry: serializeEntry(entry, {
+          shareBaseUrl: settings.shareBaseUrl
+        }),
+        refreshed: true
+      });
+    }
+
+    {
       return apiError({
         code: "UNSUPPORTED_ENTRY_ACTION",
         message: "不支持的条目动作。",
         status: 400
       });
     }
-
-    const result = await cleanupDuplicateEntries(params.id);
-
-    revalidatePath("/");
-
-    return apiOk(result);
   } catch (error) {
     return apiErrorFromUnknown(error, {
       code: "ENTRY_ACTION_FAILED",

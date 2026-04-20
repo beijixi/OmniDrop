@@ -40,10 +40,13 @@ export function serializeEntry(
       ? {
           contentText: entry.linkContentText,
           description: entry.linkDescription,
+          error: entry.linkFetchError,
           fetchedAt: entry.linkFetchedAt?.toISOString() || null,
           imageUrl: entry.linkImageUrl,
           publishedAt: entry.linkPublishedAt?.toISOString() || null,
+          requestedAt: entry.linkFetchRequestedAt?.toISOString() || null,
           siteName: entry.linkSiteName,
+          status: entry.linkFetchStatus,
           title: entry.linkTitle,
           url: entry.canonicalUrl
         }

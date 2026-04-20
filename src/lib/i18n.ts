@@ -87,6 +87,7 @@ export type MessageKey =
   | "actions.processing"
   | "actions.copy_share"
   | "actions.copy_link"
+  | "actions.refresh_link_preview"
   | "actions.copy_text"
   | "actions.copy_image"
   | "actions.more"
@@ -110,6 +111,8 @@ export type MessageKey =
   | "actions.copy_internal_share"
   | "actions.text_copied"
   | "actions.link_copied"
+  | "actions.link_preview_refreshed"
+  | "actions.link_preview_refresh_failed"
   | "actions.image_copied"
   | "actions.favorite"
   | "actions.unfavorite"
@@ -184,10 +187,28 @@ export type MessageKey =
   | "settings.save"
   | "settings.saving"
   | "settings.saved"
+  | "link.status_pending"
+  | "link.status_pending_hint"
+  | "link.status_processing"
+  | "link.status_processing_hint"
+  | "link.status_success"
+  | "link.status_failed"
+  | "link.status_blocked"
+  | "link.error_blocked_host"
+  | "link.error_blocked_private"
+  | "link.error_unsupported"
+  | "link.error_timeout"
+  | "link.error_http"
+  | "link.error_generic"
   | "share.title"
   | "share.description"
+  | "share.collection_eyebrow"
   | "share.collection_title"
   | "share.collection_description"
+  | "share.collection_items"
+  | "share.collection_links"
+  | "share.collection_assets"
+  | "share.collection_updated"
   | "not_found.title"
   | "not_found.description"
   | "not_found.back_home"
@@ -331,6 +352,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.processing": "处理中...",
     "actions.copy_share": "复制分享链接",
     "actions.copy_link": "复制链接",
+    "actions.refresh_link_preview": "重新抓取链接资料",
     "actions.copy_text": "复制文本",
     "actions.copy_image": "复制图片",
     "actions.more": "更多操作",
@@ -354,6 +376,8 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.copy_internal_share": "内网链接",
     "actions.text_copied": "文本已复制",
     "actions.link_copied": "链接已复制",
+    "actions.link_preview_refreshed": "已重新抓取链接资料",
+    "actions.link_preview_refresh_failed": "重新抓取链接资料失败",
     "actions.image_copied": "图片已复制",
     "actions.favorite": "加入收藏",
     "actions.unfavorite": "取消收藏",
@@ -464,10 +488,28 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "settings.save": "保存设置",
     "settings.saving": "保存中...",
     "settings.saved": "设置已保存",
+    "link.status_pending": "等待抓取",
+    "link.status_pending_hint": "这条链接已经排队，稍后会自动抓取标题、摘要和正文。",
+    "link.status_processing": "抓取中",
+    "link.status_processing_hint": "正在抓取网页标题、摘要和正文内容。",
+    "link.status_success": "已抓取",
+    "link.status_failed": "抓取失败",
+    "link.status_blocked": "已拦截",
+    "link.error_blocked_host": "这个链接指向本地或内网主机，出于安全原因不会自动抓取。",
+    "link.error_blocked_private": "这个链接解析到了私有网络地址，出于安全原因不会自动抓取。",
+    "link.error_unsupported": "这个链接不是可解析的网页内容，暂时不能生成预览。",
+    "link.error_timeout": "抓取超时了，可以稍后再试一次。",
+    "link.error_http": "目标站点返回了 {status}，这次没有抓到预览。",
+    "link.error_generic": "这条链接暂时没抓到预览，可以稍后重试。",
     "share.title": "{appName} 分享内容",
     "share.description": "这是一个公开分享视图，内容保留原始发送来源和时间。",
+    "share.collection_eyebrow": "{appName} 公开合集",
     "share.collection_title": "{appName} 合集分享 · {title}",
     "share.collection_description": "这是一个公开合集视图，保留了原始发送来源和时间顺序。",
+    "share.collection_items": "{count} 条内容",
+    "share.collection_links": "{count} 条链接",
+    "share.collection_assets": "{count} 个资源",
+    "share.collection_updated": "更新于 {updatedAt}",
     "not_found.title": "内容不存在",
     "not_found.description": "这个分享链接可能已经失效，或者对应内容已被移除。",
     "not_found.back_home": "回到首页",
@@ -572,6 +614,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.processing": "Working...",
     "actions.copy_share": "Copy share link",
     "actions.copy_link": "Copy link",
+    "actions.refresh_link_preview": "Refresh link preview",
     "actions.copy_text": "Copy text",
     "actions.copy_image": "Copy image",
     "actions.more": "More actions",
@@ -595,6 +638,8 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.copy_internal_share": "Internal link",
     "actions.text_copied": "Text copied",
     "actions.link_copied": "Link copied",
+    "actions.link_preview_refreshed": "Link preview refreshed",
+    "actions.link_preview_refresh_failed": "Could not refresh the link preview",
     "actions.image_copied": "Image copied",
     "actions.favorite": "Add to favorites",
     "actions.unfavorite": "Remove favorite",
@@ -705,10 +750,28 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "settings.save": "Save settings",
     "settings.saving": "Saving...",
     "settings.saved": "Settings saved",
+    "link.status_pending": "Queued",
+    "link.status_pending_hint": "This link is queued and will fetch its title, summary, and page text shortly.",
+    "link.status_processing": "Fetching",
+    "link.status_processing_hint": "Fetching the page title, summary, and readable text.",
+    "link.status_success": "Ready",
+    "link.status_failed": "Failed",
+    "link.status_blocked": "Blocked",
+    "link.error_blocked_host": "This link points to a local or internal host, so OmniDrop will not fetch it automatically.",
+    "link.error_blocked_private": "This link resolves to a private network address, so OmniDrop will not fetch it automatically.",
+    "link.error_unsupported": "This link is not a supported HTML page, so a preview could not be created.",
+    "link.error_timeout": "Fetching timed out. You can try again in a moment.",
+    "link.error_http": "The site returned {status}, so no preview was captured this time.",
+    "link.error_generic": "The preview could not be fetched right now. Try again in a moment.",
     "share.title": "{appName} shared item",
     "share.description": "This is a public share view and keeps the original sender and timestamp.",
+    "share.collection_eyebrow": "{appName} public collection",
     "share.collection_title": "{appName} shared collection · {title}",
     "share.collection_description": "This is a public collection view that keeps the original sender and timeline order.",
+    "share.collection_items": "{count} items",
+    "share.collection_links": "{count} links",
+    "share.collection_assets": "{count} assets",
+    "share.collection_updated": "Updated {updatedAt}",
     "not_found.title": "Content not found",
     "not_found.description": "This share link may have expired or the original item was removed.",
     "not_found.back_home": "Back to home",

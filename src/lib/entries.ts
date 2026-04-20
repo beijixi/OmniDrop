@@ -241,9 +241,12 @@ export async function createEntriesBatch(input: {
       const entryIds: string[] = [];
 
       if (message) {
+        const canonicalUrl = extractCanonicalUrlFromMessage(message);
         const entry = await tx.entry.create({
           data: {
-            canonicalUrl: extractCanonicalUrlFromMessage(message),
+            canonicalUrl,
+            linkFetchRequestedAt: canonicalUrl ? new Date() : null,
+            linkFetchStatus: canonicalUrl ? "PENDING" : "IDLE",
             message,
             messageFingerprint: buildMessageFingerprint(message),
             senderHost,

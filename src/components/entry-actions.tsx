@@ -66,6 +66,7 @@ export function EntryActions({
     | "edit_tags"
     | "favorite"
     | "pin"
+    | "refresh_link_preview"
     | "revoke"
     | "save_note"
     | "save_tags"
@@ -489,6 +490,46 @@ export function EntryActions({
     }
   }
 
+  async function handleRefreshLinkPreview() {
+    if (!copyableLink) {
+      return;
+    }
+
+    setLoadingAction("refresh_link_preview");
+    setStatus("");
+
+    try {
+      const response = await fetch(`/api/v1/entries/${entryId}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "refresh_link_preview"
+        })
+      });
+      const payload = (await response.json()) as {
+        error?: {
+          message?: string;
+        };
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error?.message || t("actions.link_preview_refresh_failed"));
+      }
+
+      setTransientStatus(t("actions.link_preview_refreshed"));
+      router.refresh();
+      setIsOpen(false);
+    } catch (error) {
+      setTransientStatus(
+        error instanceof Error ? error.message : t("actions.link_preview_refresh_failed")
+      );
+    } finally {
+      setLoadingAction("");
+    }
+  }
+
   return (
     <div
       className={cn(
@@ -645,6 +686,15 @@ export function EntryActions({
                   icon={<LinkIcon />}
                   label={t("actions.copy_link")}
                   onClick={() => void handleCopyLink()}
+                />
+              ) : null}
+
+              {copyableLink ? (
+                <ActionMenuButton
+                  icon={<RefreshIcon />}
+                  label={t("actions.refresh_link_preview")}
+                  loading={loadingAction === "refresh_link_preview"}
+                  onClick={() => void handleRefreshLinkPreview()}
                 />
               ) : null}
 
@@ -831,6 +881,18 @@ function LinkIcon() {
       <path strokeLinecap="round" strokeLinejoin="round" d="M8.1 11.9 6.2 13.8a2.6 2.6 0 1 1-3.7-3.7l2.8-2.8a2.6 2.6 0 0 1 3.7 0" />
       <path strokeLinecap="round" strokeLinejoin="round" d="m11.9 8.1 1.9-1.9a2.6 2.6 0 1 1 3.7 3.7l-2.8 2.8a2.6 2.6 0 0 1-3.7 0" />
       <path strokeLinecap="round" d="m7.1 12.9 5.8-5.8" />
+    </svg>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16 9.8A6 6 0 1 1 14.3 5.6M16 4.6v4.1h-4.1"
+      />
     </svg>
   );
 }

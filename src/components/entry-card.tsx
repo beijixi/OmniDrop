@@ -51,6 +51,7 @@ export async function EntryCard({
       ? `${entry.senderHost} · ${visibleIp}`
       : entry.senderHost || visibleIp || t(locale, "entry.local_source");
   const copyableLink = entry.canonicalUrl || extractFirstExternalUrl(entry.message);
+  const linkFetchState = getLinkFetchState(locale, entry.linkFetchStatus, entry.linkFetchError);
   const filePreviews = await Promise.all(
     nonImageAssets.map(async (asset) => ({
       asset,
@@ -291,6 +292,12 @@ export async function EntryCard({
                                 </span>
                               </>
                             ) : null}
+                            {linkFetchState ? (
+                              <>
+                                {entry.linkSiteName || entry.linkPublishedAt ? <span>·</span> : null}
+                                <EntryStateBadge label={linkFetchState.label} tone={linkFetchState.tone} />
+                              </>
+                            ) : null}
                           </div>
 
                           <div>
@@ -310,6 +317,26 @@ export async function EntryCard({
                                 )}
                               >
                                 {entry.linkDescription}
+                              </p>
+                            ) : null}
+                            {!entry.linkDescription && linkFetchState?.detail ? (
+                              <p
+                                className={cn(
+                                  "mt-1 text-sm leading-6",
+                                  align === "right" ? "text-white/72" : "text-slate-500"
+                                )}
+                              >
+                                {linkFetchState.detail}
+                              </p>
+                            ) : null}
+                            {entry.linkDescription && linkFetchState?.detail ? (
+                              <p
+                                className={cn(
+                                  "mt-2 text-xs leading-5",
+                                  align === "right" ? "text-white/68" : "text-slate-500"
+                                )}
+                              >
+                                {linkFetchState.detail}
                               </p>
                             ) : null}
                           </div>
@@ -713,7 +740,7 @@ function EntryStateBadge({
   tone
 }: {
   label: string;
-  tone: "amber" | "cyan" | "rose" | "slate";
+  tone: "amber" | "cyan" | "emerald" | "rose" | "slate";
 }) {
   return (
     <span
@@ -723,6 +750,8 @@ function EntryStateBadge({
           ? "border-amber-200/80 bg-amber-50/90 text-amber-700"
           : tone === "cyan"
             ? "border-cyan-200/80 bg-cyan-50/90 text-cyan-700"
+          : tone === "emerald"
+            ? "border-emerald-200/80 bg-emerald-50/90 text-emerald-700"
           : tone === "rose"
             ? "border-rose-200/80 bg-rose-50/90 text-rose-700"
           : "border-slate-200/80 bg-white/85 text-slate-500"
@@ -748,6 +777,80 @@ function getSearchSourceLabel(locale: AppLocale, source: EntrySearchSnippetSourc
     default:
       return t(locale, "search.source_message");
   }
+}
+
+function getLinkFetchState(
+  locale: AppLocale,
+  status: string | null | undefined,
+  error: string | null | undefined
+): null | {
+  detail: string | null;
+  label: string;
+  tone: "amber" | "cyan" | "emerald" | "rose" | "slate";
+} {
+  switch (status) {
+    case "PENDING":
+      return {
+        detail: t(locale, "link.status_pending_hint"),
+        label: t(locale, "link.status_pending"),
+        tone: "amber"
+      };
+    case "PROCESSING":
+      return {
+        detail: t(locale, "link.status_processing_hint"),
+        label: t(locale, "link.status_processing"),
+        tone: "cyan"
+      };
+    case "SUCCESS":
+      return {
+        detail: null,
+        label: t(locale, "link.status_success"),
+        tone: "emerald"
+      };
+    case "BLOCKED":
+      return {
+        detail: getLinkFetchErrorMessage(locale, error),
+        label: t(locale, "link.status_blocked"),
+        tone: "slate"
+      };
+    case "FAILED":
+      return {
+        detail: getLinkFetchErrorMessage(locale, error),
+        label: t(locale, "link.status_failed"),
+        tone: "rose"
+      };
+    default:
+      return null;
+  }
+}
+
+function getLinkFetchErrorMessage(locale: AppLocale, error: string | null | undefined) {
+  if (!error) {
+    return t(locale, "link.error_generic");
+  }
+
+  if (error.startsWith("LINK_FETCH_BLOCKED_HOST")) {
+    return t(locale, "link.error_blocked_host");
+  }
+
+  if (error.startsWith("LINK_FETCH_BLOCKED_PRIVATE_IP")) {
+    return t(locale, "link.error_blocked_private");
+  }
+
+  if (error.startsWith("LINK_FETCH_UNSUPPORTED_CONTENT_TYPE")) {
+    return t(locale, "link.error_unsupported");
+  }
+
+  if (error.startsWith("LINK_FETCH_FAILED_")) {
+    const statusCode = error.replace("LINK_FETCH_FAILED_", "");
+    return t(locale, "link.error_http", { status: statusCode });
+  }
+
+  if (error.includes("aborted") || error.includes("AbortError")) {
+    return t(locale, "link.error_timeout");
+  }
+
+  return t(locale, "link.error_generic");
 }
 
 function renderHighlightedText(

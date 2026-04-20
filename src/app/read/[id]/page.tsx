@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { EntryActions } from "@/components/entry-actions";
+import { EntryExcerptList } from "@/components/entry-excerpt-list";
+import { ReaderExcerptCapture } from "@/components/reader-excerpt-capture";
 import { ReaderStateSync } from "@/components/reader-state-sync";
 import { getAssetPreview } from "@/lib/asset-previews";
 import { getEntryById } from "@/lib/entries";
@@ -41,7 +43,7 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
     <div className="mx-auto max-w-5xl space-y-6 pb-12">
       <ReaderStateSync entryId={entry.id} readingState={entry.readingState as ReadingState} />
 
-      <section className="space-y-3">
+      <section data-reader-excerpt-root="true" className="space-y-3">
         <Link
           href="/"
           className="inline-flex items-center rounded-full border border-white/80 bg-white/86 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-cyan-200 hover:text-cyan-700"
@@ -74,7 +76,11 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
                 <p className="max-w-3xl text-sm leading-7 text-slate-600">{entry.linkDescription}</p>
               ) : null}
               {entry.note ? (
-                <div className="max-w-3xl rounded-[18px] border border-amber-100/90 bg-amber-50/84 px-4 py-3 text-sm leading-7 text-slate-700">
+                <div
+                  data-excerpt-label={t(locale, "excerpt.source_note")}
+                  data-excerpt-source="NOTE"
+                  className="max-w-3xl rounded-[18px] border border-amber-100/90 bg-amber-50/84 px-4 py-3 text-sm leading-7 text-slate-700"
+                >
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-700">
                     {t(locale, "entry.note")}
                   </p>
@@ -125,8 +131,17 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
         </div>
       </section>
 
+      <ReaderExcerptCapture entryId={entry.id} />
+
+      <EntryExcerptList excerpts={entry.excerpts} locale={locale} />
+
+      <div data-reader-excerpt-root="true" className="space-y-6">
       {entry.message ? (
-        <section className="panel px-5 py-5 sm:px-6">
+        <section
+          data-excerpt-label={t(locale, "excerpt.source_message")}
+          data-excerpt-source="MESSAGE"
+          className="panel px-5 py-5 sm:px-6"
+        >
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
             {t(locale, "search.source_message")}
           </p>
@@ -137,7 +152,11 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
       ) : null}
 
       {entry.canonicalUrl ? (
-        <section className="panel overflow-hidden px-5 py-5 sm:px-6">
+        <section
+          data-excerpt-label={t(locale, "excerpt.source_link")}
+          data-excerpt-source="LINK"
+          className="panel overflow-hidden px-5 py-5 sm:px-6"
+        >
           <div className="flex flex-col gap-4 lg:flex-row">
             {entry.linkImageUrl ? (
               <img
@@ -230,7 +249,12 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
 
           {asset.kind === "FILE" ? (
             preview ? (
-              <div className="overflow-hidden rounded-[24px] border border-slate-200/80 bg-white/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+              <div
+                data-asset-id={asset.id}
+                data-excerpt-label={`${t(locale, "excerpt.source_asset")} · ${asset.originalName}`}
+                data-excerpt-source="ASSET"
+                className="overflow-hidden rounded-[24px] border border-slate-200/80 bg-white/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
+              >
                 {preview.kind === "markdown" ? (
                   <article
                     className="prose prose-slate max-w-none px-5 py-5 [&_pre]:overflow-x-auto"
@@ -293,6 +317,7 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
           ) : null}
         </section>
       ))}
+      </div>
     </div>
   );
 }

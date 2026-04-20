@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { CopyImageButton, CopyTextButton } from "@/components/clipboard-buttons";
 import { EntryActions } from "@/components/entry-actions";
+import { EntryExcerptList } from "@/components/entry-excerpt-list";
 import { getAssetPreview } from "@/lib/asset-previews";
 import type { AppLocale } from "@/lib/i18n";
 import { getFileVisual } from "@/lib/file-types";
@@ -441,6 +442,8 @@ export async function EntryCard({
                     </section>
                   ) : null}
 
+                  <EntryExcerptList align={align} compact excerpts={entry.excerpts} locale={locale} />
+
                   {imageAssets.length > 0 ? (
                     <section className={cn("grid gap-2.5", imageAssets.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
                       {imageAssets.map((asset) => (
@@ -829,6 +832,8 @@ function getSearchSourceLabel(locale: AppLocale, source: EntrySearchSnippetSourc
       return t(locale, "search.source_link");
     case "note":
       return t(locale, "search.source_note");
+    case "excerpt":
+      return t(locale, "search.source_excerpt");
     case "sender":
       return t(locale, "search.source_sender");
     default:

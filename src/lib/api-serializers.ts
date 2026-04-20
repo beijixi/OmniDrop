@@ -62,6 +62,16 @@ export function serializeEntry(
       ip: entry.senderIp,
       name: entry.senderName
     },
+    excerpts: entry.excerpts.map((excerpt) => ({
+      assetId: excerpt.assetId,
+      assetName: excerpt.asset?.originalName || null,
+      content: excerpt.content,
+      createdAt: excerpt.createdAt.toISOString(),
+      id: excerpt.id,
+      note: excerpt.note,
+      source: excerpt.source,
+      updatedAt: excerpt.updatedAt.toISOString()
+    })),
     tags: entry.tags.map((item) => item.tag.name),
     assets: entry.assets.map((asset) => ({
       id: asset.id,

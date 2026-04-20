@@ -82,6 +82,7 @@ export type MessageKey =
   | "search.source_message"
   | "search.source_link"
   | "search.source_note"
+  | "search.source_excerpt"
   | "search.source_asset_name"
   | "search.source_asset_text"
   | "search.source_sender"
@@ -212,6 +213,19 @@ export type MessageKey =
   | "reader.open_original"
   | "reader.link_excerpt"
   | "reader.pdf_mobile_hint"
+  | "excerpt.title"
+  | "excerpt.empty"
+  | "excerpt.select_hint"
+  | "excerpt.selection_label"
+  | "excerpt.note_label"
+  | "excerpt.note_placeholder"
+  | "excerpt.save"
+  | "excerpt.saved"
+  | "excerpt.save_failed"
+  | "excerpt.source_message"
+  | "excerpt.source_note"
+  | "excerpt.source_link"
+  | "excerpt.source_asset"
   | "link.status_pending"
   | "link.status_pending_hint"
   | "link.status_processing"
@@ -372,6 +386,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "search.source_link": "链接内容",
     "search.source_message": "正文",
     "search.source_note": "备注",
+    "search.source_excerpt": "摘录",
     "search.source_asset_name": "文件名",
     "search.source_asset_text": "文件内容",
     "search.source_sender": "发送来源",
@@ -538,6 +553,19 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "reader.open_original": "打开原链接",
     "reader.link_excerpt": "网页正文摘录",
     "reader.pdf_mobile_hint": "手机端会优先使用系统阅读器打开 PDF，避免自动下载体验太重。",
+    "excerpt.title": "摘录",
+    "excerpt.empty": "还没有摘录。选中一段文字后，随手留下一条重点。",
+    "excerpt.select_hint": "在阅读页里选中正文、备注、网页内容或文档文本，就能保存成摘录。",
+    "excerpt.selection_label": "当前选中",
+    "excerpt.note_label": "摘录说明",
+    "excerpt.note_placeholder": "补一句这段为什么重要",
+    "excerpt.save": "保存摘录",
+    "excerpt.saved": "摘录已保存",
+    "excerpt.save_failed": "保存摘录失败",
+    "excerpt.source_message": "正文摘录",
+    "excerpt.source_note": "备注摘录",
+    "excerpt.source_link": "网页摘录",
+    "excerpt.source_asset": "文档摘录",
     "link.status_pending": "等待抓取",
     "link.status_pending_hint": "这条链接已经排队，稍后会自动抓取标题、摘要和正文。",
     "link.status_processing": "抓取中",
@@ -659,6 +687,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "search.source_link": "Link",
     "search.source_message": "Message",
     "search.source_note": "Note",
+    "search.source_excerpt": "Excerpt",
     "search.source_asset_name": "File name",
     "search.source_asset_text": "File text",
     "search.source_sender": "Sender",
@@ -825,6 +854,19 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "reader.open_original": "Open original",
     "reader.link_excerpt": "Article excerpt",
     "reader.pdf_mobile_hint": "On phones, PDFs are better opened in the system viewer instead of forcing a heavy inline preview.",
+    "excerpt.title": "Excerpts",
+    "excerpt.empty": "No excerpts yet. Select some text and keep the important bits.",
+    "excerpt.select_hint": "Select message text, notes, article content, or document text in the reader to save an excerpt.",
+    "excerpt.selection_label": "Current selection",
+    "excerpt.note_label": "Why it matters",
+    "excerpt.note_placeholder": "Add a short note about why this excerpt matters",
+    "excerpt.save": "Save excerpt",
+    "excerpt.saved": "Excerpt saved",
+    "excerpt.save_failed": "Could not save the excerpt",
+    "excerpt.source_message": "Message excerpt",
+    "excerpt.source_note": "Note excerpt",
+    "excerpt.source_link": "Article excerpt",
+    "excerpt.source_asset": "Document excerpt",
     "link.status_pending": "Queued",
     "link.status_pending_hint": "This link is queued and will fetch its title, summary, and page text shortly.",
     "link.status_processing": "Fetching",

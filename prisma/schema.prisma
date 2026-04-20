@@ -57,6 +57,7 @@ model Entry {
   updatedAt DateTime    @updatedAt
   assets    Asset[]
   collections CollectionEntry[]
+  excerpts  Excerpt[]
   tags      EntryTag[]
   shareLink ShareLink?
 
@@ -85,6 +86,7 @@ model Asset {
   mimeType      String
   size          Int
   contentHash   String?   @db.VarChar(64)
+  excerpts     Excerpt[]
   searchText    String?   @db.Text
   searchTextIndexedAt DateTime?
   createdAt     DateTime  @default(now())
@@ -92,6 +94,23 @@ model Asset {
   @@index([entryId, createdAt])
   @@index([storageDriver, createdAt])
   @@index([contentHash, createdAt])
+}
+
+model Excerpt {
+  id        String   @id @default(cuid())
+  entryId    String
+  assetId    String?
+  source    String   @db.VarChar(24)
+  content   String   @db.Text
+  note      String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  asset     Asset?   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([entryId, createdAt(sort: Desc)])
+  @@index([assetId, createdAt(sort: Desc)])
+  @@index([source, createdAt(sort: Desc)])
 }
 
 model SavedView {

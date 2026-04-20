@@ -9,6 +9,7 @@ import {
   type EntryDuplicateSummary
 } from "@/lib/dedupe";
 import { normalizeEntryView } from "@/lib/entry-views";
+import { excerptInclude } from "@/lib/excerpts";
 import { prisma } from "@/lib/prisma";
 import { resolveEntryType } from "@/lib/file-types";
 import {
@@ -36,6 +37,12 @@ export const entryInclude = {
     },
     orderBy: {
       createdAt: "asc"
+    }
+  },
+  excerpts: {
+    include: excerptInclude,
+    orderBy: {
+      createdAt: "desc"
     }
   },
   shareLink: true
@@ -68,6 +75,7 @@ export type EntryPageResult = {
 export type EntrySearchSnippetSource =
   | "assetName"
   | "assetText"
+  | "excerpt"
   | "link"
   | "message"
   | "note"
@@ -1143,6 +1151,26 @@ function buildEntryWhereParts(filters: EntryFilters): Prisma.EntryWhereInput[] {
           }
         },
         {
+          excerpts: {
+            some: {
+              OR: [
+                {
+                  content: {
+                    contains: query,
+                    mode: "insensitive"
+                  }
+                },
+                {
+                  note: {
+                    contains: query,
+                    mode: "insensitive"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
           senderName: {
             contains: query,
             mode: "insensitive"
@@ -1677,6 +1705,28 @@ function buildEntrySearchMatch(entry: EntryWithRelations, query?: string): Entry
       : null
   );
 
+  entry.excerpts.forEach((excerpt) => {
+    if (snippets.length >= 4) {
+      return;
+    }
+
+    const excerptSnippet = createSearchSnippet(
+      [excerpt.content, excerpt.note].filter(Boolean).join(" · "),
+      normalizedQuery,
+      {
+        compactWhitespace: true
+      }
+    );
+
+    if (excerptSnippet) {
+      pushSnippet({
+        assetName: excerpt.asset?.originalName,
+        source: "excerpt",
+        text: excerptSnippet
+      });
+    }
+  });
+
   entry.assets.forEach((asset) => {
     if (snippets.length >= 4) {
       return;
@@ -1751,6 +1801,8 @@ function getSourceRelevance(source: EntrySearchSnippetSource) {
       return 35;
     case "link":
       return 32;
+    case "excerpt":
+      return 28;
     case "assetName":
       return 30;
     case "assetText":

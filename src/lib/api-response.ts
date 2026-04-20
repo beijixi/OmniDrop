@@ -92,6 +92,24 @@ export function apiErrorFromUnknown(
           message: "阅读状态无效。",
           status: 400
         });
+      case "EXCERPT_EMPTY":
+        return apiError({
+          code: "EXCERPT_EMPTY",
+          message: "请先选中一段文字再保存摘录。",
+          status: 400
+        });
+      case "INVALID_EXCERPT_SOURCE":
+        return apiError({
+          code: "INVALID_EXCERPT_SOURCE",
+          message: "摘录来源无效。",
+          status: 400
+        });
+      case "EXCERPT_ASSET_NOT_FOUND":
+        return apiError({
+          code: "EXCERPT_ASSET_NOT_FOUND",
+          message: "摘录对应的文件不存在，或者已经被移除。",
+          status: 400
+        });
       case "EMPTY_DUPLICATE_KEEP_ENTRY":
         return apiError({
           code: "EMPTY_DUPLICATE_KEEP_ENTRY",

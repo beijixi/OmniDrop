@@ -257,6 +257,7 @@ export async function EntryCard({
                             value={copyableLink}
                             idleLabel={t(locale, "actions.copy_link")}
                             copiedLabel={t(locale, "actions.link_copied")}
+                            promptLabel={t(locale, "actions.copy_prompt")}
                             className={cn(
                               "h-8 w-8 shrink-0",
                               align === "right"
@@ -271,8 +272,20 @@ export async function EntryCard({
 
                   {entry.message ? (
                     <section>
-                      {copyableLink || readHref ? (
+                      {entry.message || copyableLink || readHref ? (
                         <div className={cn("mb-2 flex gap-2", align === "right" ? "justify-end" : "justify-start")}>
+                          <CopyTextButton
+                            value={entry.message}
+                            idleLabel={t(locale, "actions.copy_text")}
+                            copiedLabel={t(locale, "actions.text_copied")}
+                            promptLabel={t(locale, "actions.copy_prompt")}
+                            showLabel
+                            className={cn(
+                              align === "right"
+                                ? "border-white/20 bg-white/10 text-white hover:border-white/35 hover:text-white"
+                                : "border-cyan-100/90 bg-white/88 text-cyan-700 hover:border-cyan-200 hover:text-cyan-800"
+                            )}
+                          />
                           {readHref ? (
                             <Link
                               href={readHref}
@@ -287,21 +300,23 @@ export async function EntryCard({
                             </Link>
                           ) : null}
                           {copyableLink ? (
-                          <CopyTextButton
-                            value={copyableLink}
-                            idleLabel={t(locale, "actions.copy_link")}
-                            copiedLabel={t(locale, "actions.link_copied")}
-                            className={cn(
-                              "h-8 w-8 shrink-0",
-                              align === "right"
-                                ? "border-white/20 bg-white/10 text-white hover:border-white/35 hover:text-white"
-                                : "border-cyan-100/90 bg-white/88 text-cyan-700 hover:border-cyan-200 hover:text-cyan-800"
-                            )}
-                          />
+                            <CopyTextButton
+                              value={copyableLink}
+                              idleLabel={t(locale, "actions.copy_link")}
+                              copiedLabel={t(locale, "actions.link_copied")}
+                              promptLabel={t(locale, "actions.copy_prompt")}
+                              className={cn(
+                                "h-8 w-8 shrink-0",
+                                align === "right"
+                                  ? "border-white/20 bg-white/10 text-white hover:border-white/35 hover:text-white"
+                                  : "border-cyan-100/90 bg-white/88 text-cyan-700 hover:border-cyan-200 hover:text-cyan-800"
+                              )}
+                            />
                           ) : null}
                         </div>
                       ) : null}
                       <div
+                        data-preserve-text-selection="true"
                         className={cn(
                           "text-[15px] leading-6 sm:leading-7",
                           align === "right" ? "text-white" : "text-slate-800"
@@ -415,6 +430,7 @@ export async function EntryCard({
                   {entry.note ? (
                     <section>
                       <div
+                        data-preserve-text-selection="true"
                         className={cn(
                           "rounded-[18px] border px-3.5 py-3 sm:px-4",
                           align === "right"
@@ -600,7 +616,10 @@ export async function EntryCard({
                               </div>
 
                               {preview ? (
-                                <div className="mt-3 overflow-hidden rounded-[18px] border border-slate-200/70 bg-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
+                                <div
+                                  data-preserve-text-selection="true"
+                                  className="mt-3 overflow-hidden rounded-[18px] border border-slate-200/70 bg-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]"
+                                >
                                   {preview.kind === "markdown" ? (
                                     <div
                                       className="space-y-2 px-4 py-3 text-sm leading-7 text-slate-700 [&_a]:text-cyan-700 [&_blockquote]:border-l-2 [&_blockquote]:border-slate-200 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:bg-slate-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-sm [&_h2]:font-semibold [&_li]:ml-4 [&_ol]:list-decimal [&_ul]:list-disc [&_pre]:overflow-x-auto [&_pre]:rounded-[14px] [&_pre]:bg-slate-950 [&_pre]:p-3 [&_pre]:text-slate-100"

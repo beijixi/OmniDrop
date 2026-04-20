@@ -50,6 +50,7 @@ export function EntryExcerptList({
           {visibleExcerpts.map((excerpt) => (
             <article
               key={excerpt.id}
+              data-preserve-text-selection="true"
               className={cn(
                 "rounded-[16px] px-3 py-2.5",
                 align === "right" ? "bg-white/8" : "bg-white/88"

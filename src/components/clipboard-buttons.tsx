@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
+import { copyTextWithFallback } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
 
 type SharedButtonProps = {
@@ -13,6 +14,8 @@ type SharedButtonProps = {
 type CopyTextButtonProps = SharedButtonProps & {
   copiedLabel?: string;
   idleLabel?: string;
+  promptLabel?: string;
+  showLabel?: boolean;
   value: string;
 };
 
@@ -25,7 +28,9 @@ export function CopyTextButton({
   value,
   className,
   copiedLabel,
-  idleLabel
+  idleLabel,
+  promptLabel,
+  showLabel = false
 }: CopyTextButtonProps) {
   const { t } = useI18n();
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
@@ -34,7 +39,9 @@ export function CopyTextButton({
     setState("busy");
 
     try {
-      await navigator.clipboard.writeText(value);
+      await copyTextWithFallback(value, {
+        promptLabel: promptLabel || t("actions.copy_prompt")
+      });
       setState("done");
     } catch {
       setState("error");
@@ -47,12 +54,18 @@ export function CopyTextButton({
     <button
       type="button"
       onClick={() => void handleCopy()}
-      className={cn("entry-icon-button", className)}
+      className={cn(
+        showLabel
+          ? "inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-semibold transition sm:h-9"
+          : "entry-icon-button",
+        className
+      )}
       disabled={state === "busy"}
       aria-label={labelForTextState(state, t, idleLabel, copiedLabel)}
       title={labelForTextState(state, t, idleLabel, copiedLabel)}
     >
       {renderIcon(state, <CopyIcon />)}
+      {showLabel ? <span>{labelForTextState(state, t, idleLabel, copiedLabel)}</span> : null}
     </button>
   );
 }

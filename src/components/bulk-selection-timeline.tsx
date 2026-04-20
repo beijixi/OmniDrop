@@ -648,7 +648,10 @@ export function SelectableEntryShell({ children, entryId }: SelectableEntryShell
 
     const target = event.target;
 
-    if (!(target instanceof Element) || target.closest("a,button,input,textarea,select,label,summary")) {
+    if (
+      !(target instanceof Element) ||
+      target.closest("a,button,input,textarea,select,label,summary,[data-preserve-text-selection='true']")
+    ) {
       return;
     }
 

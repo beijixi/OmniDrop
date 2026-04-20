@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/components/i18n-provider";
+import { copyTextWithFallback } from "@/lib/clipboard";
 
 type CollectionActionsProps = {
   collectionId: string;
@@ -131,7 +132,9 @@ export function CollectionActions({
       }
 
       try {
-        await navigator.clipboard.writeText(nextShareUrl);
+        await copyTextWithFallback(nextShareUrl, {
+          promptLabel: t("actions.copy_prompt")
+        });
         setTransientStatus(
           target === "public"
             ? t("actions.public_share_copied")

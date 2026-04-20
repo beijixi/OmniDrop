@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/components/i18n-provider";
+import { copyTextWithFallback } from "@/lib/clipboard";
 import type { ReadingState } from "@/lib/reading-states";
 import { cn, extractFirstExternalUrl, normalizeTagList } from "@/lib/utils";
 
@@ -166,7 +167,9 @@ export function EntryActions({
       }
 
       try {
-        await navigator.clipboard.writeText(nextShareUrl);
+        await copyTextWithFallback(nextShareUrl, {
+          promptLabel: t("actions.copy_prompt")
+        });
         setTransientStatus(
           target === "public"
             ? t("actions.public_share_copied")
@@ -254,7 +257,9 @@ export function EntryActions({
     setStatus("");
 
     try {
-      await navigator.clipboard.writeText(messageText);
+      await copyTextWithFallback(messageText, {
+        promptLabel: t("actions.copy_prompt")
+      });
       setTransientStatus(t("actions.text_copied"));
     } catch {
       setTransientStatus(t("actions.copy_failed"));
@@ -269,7 +274,9 @@ export function EntryActions({
     setStatus("");
 
     try {
-      await navigator.clipboard.writeText(copyableLink);
+      await copyTextWithFallback(copyableLink, {
+        promptLabel: t("actions.copy_prompt")
+      });
       setTransientStatus(t("actions.link_copied"));
     } catch {
       setTransientStatus(t("actions.copy_failed"));
@@ -738,6 +745,14 @@ export function EntryActions({
 
               <div className="my-2 h-px bg-[linear-gradient(90deg,rgba(226,232,240,0),rgba(203,213,225,0.9),rgba(226,232,240,0))]" />
 
+              {messageText ? (
+                <ActionMenuButton
+                  icon={<CopyIcon />}
+                  label={t("actions.copy_text")}
+                  onClick={() => void handleCopyText()}
+                />
+              ) : null}
+
               {copyableLink ? (
                 <ActionMenuButton
                   icon={<LinkIcon />}
@@ -752,14 +767,6 @@ export function EntryActions({
                   label={t("actions.refresh_link_preview")}
                   loading={loadingAction === "refresh_link_preview"}
                   onClick={() => void handleRefreshLinkPreview()}
-                />
-              ) : null}
-
-              {messageText ? (
-                <ActionMenuButton
-                  icon={<CopyIcon />}
-                  label={t("actions.copy_text")}
-                  onClick={() => void handleCopyText()}
                 />
               ) : null}
 

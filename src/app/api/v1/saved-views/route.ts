@@ -10,6 +10,7 @@ export async function POST(request: Request) {
     const payload = (await request.json()) as {
       duplicatesOnly?: boolean;
       name?: string;
+      reading?: string;
       q?: string;
       tag?: string;
       type?: string;
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
     const savedView = await createSavedView({
       duplicatesOnly: payload.duplicatesOnly,
       name: String(payload.name || ""),
+      reading: payload.reading,
       q: payload.q,
       tag: payload.tag,
       type: payload.type,

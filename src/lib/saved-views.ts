@@ -3,6 +3,10 @@ import type { EntryType, SavedView } from "@prisma/client";
 import { normalizeEntryView, type EntryView } from "@/lib/entry-views";
 import { normalizeEntryTypeOption } from "@/lib/file-types";
 import { prisma } from "@/lib/prisma";
+import {
+  normalizeReadingStateFilter,
+  type ReadingStateFilter
+} from "@/lib/reading-states";
 import { normalizeTagNames } from "@/lib/tags";
 
 const MAX_SAVED_VIEWS = 12;
@@ -10,6 +14,7 @@ const MAX_SAVED_VIEWS = 12;
 export type SavedViewInput = {
   duplicatesOnly?: boolean;
   name: string;
+  reading?: string | null;
   q?: string | null;
   tag?: string | null;
   type?: string | null;
@@ -23,6 +28,7 @@ export type SavedViewSummary = {
   id: string;
   name: string;
   query: string;
+  readingState: ReadingStateFilter;
   tagName: string;
   updatedAt: string;
 };
@@ -87,6 +93,7 @@ export async function deleteSavedView(id: string): Promise<void> {
 function normalizeSavedViewInput(input: SavedViewInput): Omit<SavedView, "createdAt" | "id" | "updatedAt"> | null {
   const name = input.name.trim().slice(0, 64);
   const query = input.q?.trim() || null;
+  const readingState = normalizeReadingStateFilter(input.reading);
   const tagName = normalizeTagNames(input.tag || "").at(0) || null;
   const entryType = normalizeEntryTypeOption(input.type);
   const entryView = normalizeEntryView(input.view);
@@ -96,7 +103,14 @@ function normalizeSavedViewInput(input: SavedViewInput): Omit<SavedView, "create
     throw new Error("EMPTY_SAVED_VIEW_NAME");
   }
 
-  if (!query && !tagName && entryType === "ALL" && entryView === "ACTIVE" && !duplicatesOnly) {
+  if (
+    !query &&
+    !tagName &&
+    readingState === "INBOX" &&
+    entryType === "ALL" &&
+    entryView === "ACTIVE" &&
+    !duplicatesOnly
+  ) {
     return null;
   }
 
@@ -106,6 +120,7 @@ function normalizeSavedViewInput(input: SavedViewInput): Omit<SavedView, "create
     entryView,
     name,
     query,
+    readingState: readingState === "INBOX" ? null : readingState,
     tagName
   };
 }
@@ -118,6 +133,7 @@ function serializeSavedView(view: SavedView): SavedViewSummary {
     id: view.id,
     name: view.name,
     query: view.query || "",
+    readingState: normalizeReadingStateFilter(view.readingState),
     tagName: view.tagName || "",
     updatedAt: view.updatedAt.toISOString()
   };

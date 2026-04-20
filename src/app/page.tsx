@@ -12,6 +12,7 @@ import { resolveViewerIpv4FromHeaders } from "@/lib/request-source";
 import { getSavedViews } from "@/lib/saved-views";
 import { listTagSummaries, normalizeTagNames } from "@/lib/tags";
 import { isMobileUserAgent } from "@/lib/utils";
+import { normalizeReadingStateFilter } from "@/lib/reading-states";
 import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ type HomePageProps = {
   searchParams?: {
     duplicates?: string;
     q?: string;
+    reading?: string;
     tag?: string;
     type?: string;
     view?: string;
@@ -29,6 +31,7 @@ type HomePageProps = {
 export default async function HomePage({ searchParams }: HomePageProps) {
   const requestHeaders = headers();
   const currentQuery = searchParams?.q?.trim() || "";
+  const currentReading = normalizeReadingStateFilter(searchParams?.reading);
   const currentTag = normalizeTagNames(searchParams?.tag?.trim() || "").at(0) || "";
   const currentType = normalizeEntryTypeOption(searchParams?.type);
   const currentView = normalizeEntryView(searchParams?.view);
@@ -39,6 +42,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const [entries, savedViews, availableTags, collections] = await Promise.all([
     getEntries({
       duplicatesOnly,
+      reading: currentReading,
       q: currentQuery,
       tag: currentTag,
       type: currentType,
@@ -55,6 +59,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         availableTags={availableTags}
         currentDuplicatesOnly={duplicatesOnly}
         currentQuery={currentQuery}
+        currentReading={currentReading}
         currentTag={currentTag}
         currentType={currentType}
         currentView={currentView}

@@ -52,6 +52,7 @@ export function serializeEntry(
         }
       : null,
     isFavorite: entry.isFavorite,
+    readingState: entry.readingState,
     archivedAt: entry.archivedAt?.toISOString() || null,
     pinnedAt: entry.pinnedAt?.toISOString() || null,
     createdAt: entry.createdAt.toISOString(),

@@ -31,6 +31,10 @@ type BatchActionPayload = {
 };
 
 const batchActions: Array<Exclude<EntryBatchAction, "add_tags">> = [
+  "mark_inbox",
+  "mark_later",
+  "mark_reading",
+  "mark_done",
   "pin",
   "unpin",
   "favorite",
@@ -47,6 +51,10 @@ const actionLabelKeys: Record<
   archive: "actions.archive",
   delete: "actions.delete",
   favorite: "actions.favorite",
+  mark_done: "actions.mark_done",
+  mark_inbox: "actions.mark_inbox",
+  mark_later: "actions.mark_later",
+  mark_reading: "actions.mark_reading",
   pin: "actions.pin",
   unarchive: "actions.unarchive",
   unfavorite: "actions.unfavorite",
@@ -747,6 +755,14 @@ function getBatchSuccessMessage(
       return t("actions.batch_favorited", { count });
     case "unfavorite":
       return t("actions.batch_unfavorited", { count });
+    case "mark_inbox":
+      return t("actions.batch_marked_inbox", { count });
+    case "mark_later":
+      return t("actions.batch_marked_later", { count });
+    case "mark_reading":
+      return t("actions.batch_marked_reading", { count });
+    case "mark_done":
+      return t("actions.batch_marked_done", { count });
     case "archive":
       return t("actions.batch_archived", { count });
     case "unarchive":

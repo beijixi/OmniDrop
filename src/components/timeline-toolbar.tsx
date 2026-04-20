@@ -9,6 +9,10 @@ import { useI18n } from "@/components/i18n-provider";
 import { entryViewOptions, type EntryView } from "@/lib/entry-views";
 import { entryTypeOptions } from "@/lib/file-types";
 import type { MessageKey } from "@/lib/i18n";
+import {
+  readingStateFilterOptions,
+  type ReadingStateFilter
+} from "@/lib/reading-states";
 import type { SavedViewSummary } from "@/lib/saved-views";
 import type { TagSummary } from "@/lib/tags";
 import { cn } from "@/lib/utils";
@@ -17,6 +21,7 @@ type TimelineToolbarProps = {
   availableTags: TagSummary[];
   currentDuplicatesOnly?: boolean;
   currentQuery?: string;
+  currentReading?: ReadingStateFilter;
   currentTag?: string;
   currentType?: string;
   currentView?: EntryView;
@@ -28,6 +33,7 @@ export function TimelineToolbar({
   availableTags,
   currentDuplicatesOnly = false,
   currentQuery,
+  currentReading = "INBOX",
   currentTag,
   currentType,
   currentView = "ACTIVE",
@@ -38,6 +44,7 @@ export function TimelineToolbar({
   const { entryTypeLabels, entryViewLabels, t } = useI18n();
   const hasActiveFilters =
     Boolean(currentQuery) ||
+    currentReading !== "INBOX" ||
     Boolean(currentTag) ||
     (currentType || "ALL") !== "ALL" ||
     currentView !== "ACTIVE" ||
@@ -64,6 +71,7 @@ export function TimelineToolbar({
       suggestSavedViewName({
         currentDuplicatesOnly,
         currentQuery,
+        currentReading,
         currentTag,
         currentType,
         currentView,
@@ -75,6 +83,7 @@ export function TimelineToolbar({
   }, [
     currentDuplicatesOnly,
     currentQuery,
+    currentReading,
     currentTag,
     currentType,
     currentView,
@@ -115,6 +124,7 @@ export function TimelineToolbar({
     isSavedViewActive(savedView, {
       currentDuplicatesOnly,
       currentQuery,
+      currentReading,
       currentTag,
       currentType,
       currentView
@@ -139,6 +149,11 @@ export function TimelineToolbar({
                 {currentQuery ? (
                   <span className="max-w-[11rem] truncate rounded-full border border-cyan-100/80 bg-cyan-50/80 px-3 py-1.5 text-cyan-700">
                     {currentQuery}
+                  </span>
+                ) : null}
+                {currentReading !== "INBOX" ? (
+                  <span className="rounded-full border border-violet-200/80 bg-violet-50/80 px-3 py-1.5 text-violet-700">
+                    {getReadingFilterLabel(t, currentReading)}
                   </span>
                 ) : null}
                 {currentTag ? (
@@ -179,6 +194,9 @@ export function TimelineToolbar({
                   <input type="hidden" name="view" value={currentView} />
                 ) : null}
                 {currentDuplicatesOnly ? <input type="hidden" name="duplicates" value="1" /> : null}
+                {currentReading !== "INBOX" ? (
+                  <input type="hidden" name="reading" value={currentReading} />
+                ) : null}
                 {currentTag ? <input type="hidden" name="tag" value={currentTag} /> : null}
 
                 <div className="relative flex-1">
@@ -280,6 +298,7 @@ export function TimelineToolbar({
                             href={buildHref({
                               duplicatesOnly: savedView.duplicatesOnly,
                               q: savedView.query,
+                              reading: savedView.readingState,
                               tag: savedView.tagName,
                               type: savedView.entryType,
                               view: savedView.entryView
@@ -324,6 +343,7 @@ export function TimelineToolbar({
                       href={buildHref({
                         duplicatesOnly: currentDuplicatesOnly,
                         q: currentQuery,
+                        reading: currentReading,
                         tag: currentTag,
                         type: currentType,
                         view
@@ -344,6 +364,7 @@ export function TimelineToolbar({
                   href={buildHref({
                     duplicatesOnly: !currentDuplicatesOnly,
                     q: currentQuery,
+                    reading: currentReading,
                     tag: currentTag,
                     type: currentType,
                     view: currentView
@@ -360,10 +381,39 @@ export function TimelineToolbar({
               </div>
 
               <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-1">
+                {readingStateFilterOptions.map((reading) => {
+                  const active = currentReading === reading;
+
+                  return (
+                    <Link
+                      key={reading}
+                      href={buildHref({
+                        duplicatesOnly: currentDuplicatesOnly,
+                        q: currentQuery,
+                        reading,
+                        tag: currentTag,
+                        type: currentType,
+                        view: currentView
+                      })}
+                      className={cn(
+                        "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition",
+                        active
+                          ? "border-transparent bg-[linear-gradient(135deg,#6d28d9,#7c3aed_58%,#22d3ee)] text-white shadow-[0_12px_26px_rgba(124,58,237,0.22)]"
+                          : "border-white/78 bg-white/74 text-slate-600 hover:border-violet-200 hover:text-violet-700"
+                      )}
+                    >
+                      {getReadingFilterLabel(t, reading)}
+                    </Link>
+                  );
+                })}
+              </div>
+
+              <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-1">
                 <Link
                   href={buildHref({
                     duplicatesOnly: currentDuplicatesOnly,
                     q: currentQuery,
+                    reading: currentReading,
                     type: currentType,
                     view: currentView
                   })}
@@ -386,6 +436,7 @@ export function TimelineToolbar({
                       href={buildHref({
                         duplicatesOnly: currentDuplicatesOnly,
                         q: currentQuery,
+                        reading: currentReading,
                         tag: tag.name,
                         type: currentType,
                         view: currentView
@@ -413,6 +464,7 @@ export function TimelineToolbar({
                       href={buildHref({
                         duplicatesOnly: currentDuplicatesOnly,
                         q: currentQuery,
+                        reading: currentReading,
                         tag: currentTag,
                         type,
                         view: currentView
@@ -453,6 +505,7 @@ export function TimelineToolbar({
           duplicatesOnly: currentDuplicatesOnly,
           name: saveViewName.trim(),
           q: currentQuery || "",
+          reading: currentReading,
           tag: currentTag || "",
           type: currentType || "ALL",
           view: currentView
@@ -512,6 +565,7 @@ export function TimelineToolbar({
 function buildHref(input: {
   duplicatesOnly?: boolean;
   q?: string;
+  reading?: ReadingStateFilter;
   tag?: string;
   type?: string;
   view?: EntryView;
@@ -524,6 +578,10 @@ function buildHref(input: {
 
   if (input.tag) {
     params.set("tag", input.tag);
+  }
+
+  if (input.reading && input.reading !== "INBOX") {
+    params.set("reading", input.reading);
   }
 
   if (input.type && input.type !== "ALL") {
@@ -547,6 +605,7 @@ function isSavedViewActive(
   current: {
     currentDuplicatesOnly: boolean;
     currentQuery?: string;
+    currentReading?: ReadingStateFilter;
     currentTag?: string;
     currentType?: string;
     currentView: EntryView;
@@ -555,6 +614,7 @@ function isSavedViewActive(
   return (
     savedView.duplicatesOnly === current.currentDuplicatesOnly &&
     savedView.query === (current.currentQuery || "") &&
+    savedView.readingState === (current.currentReading || "INBOX") &&
     savedView.tagName === (current.currentTag || "") &&
     savedView.entryType === (current.currentType || "ALL") &&
     savedView.entryView === current.currentView
@@ -564,6 +624,7 @@ function isSavedViewActive(
 function suggestSavedViewName(input: {
   currentDuplicatesOnly: boolean;
   currentQuery?: string;
+  currentReading: ReadingStateFilter;
   currentTag?: string;
   currentType?: string;
   currentView: EntryView;
@@ -575,6 +636,10 @@ function suggestSavedViewName(input: {
 
   if (input.currentQuery) {
     parts.push(input.currentQuery);
+  }
+
+  if (input.currentReading !== "INBOX") {
+    parts.push(getReadingFilterLabel(input.t, input.currentReading));
   }
 
   if (input.currentTag) {
@@ -594,6 +659,24 @@ function suggestSavedViewName(input: {
   }
 
   return parts.length > 0 ? parts.join(" · ") : input.t("toolbar.save_view");
+}
+
+function getReadingFilterLabel(
+  t: ReturnType<typeof useI18n>["t"],
+  reading: ReadingStateFilter
+) {
+  switch (reading) {
+    case "ALL":
+      return t("reading.filter_all");
+    case "LATER":
+      return t("reading.state_later");
+    case "READING":
+      return t("reading.state_reading");
+    case "DONE":
+      return t("reading.state_done");
+    default:
+      return t("reading.state_inbox");
+  }
 }
 
 function SearchIcon() {

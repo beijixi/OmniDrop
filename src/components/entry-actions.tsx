@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/components/i18n-provider";
+import type { ReadingState } from "@/lib/reading-states";
 import { cn, extractFirstExternalUrl, normalizeTagList } from "@/lib/utils";
 
 type EntryActionsProps = {
@@ -19,6 +20,7 @@ type EntryActionsProps = {
   linkUrl?: string | null;
   messageText?: string | null;
   note?: string | null;
+  readingState?: ReadingState;
   tags?: string[];
 };
 
@@ -39,6 +41,7 @@ export function EntryActions({
   linkUrl = null,
   messageText = null,
   note = null,
+  readingState = "INBOX",
   tags = []
 }: EntryActionsProps) {
   const router = useRouter();
@@ -49,6 +52,7 @@ export function EntryActions({
   const [favorite, setFavorite] = useState(isFavorite);
   const [archived, setArchived] = useState(isArchived);
   const [pinned, setPinned] = useState(isPinned);
+  const [entryReadingState, setEntryReadingState] = useState<ReadingState>(readingState);
   const [entryNote, setEntryNote] = useState(note || "");
   const [entryTags, setEntryTags] = useState(tags);
   const [showNoteEditor, setShowNoteEditor] = useState(false);
@@ -65,6 +69,7 @@ export function EntryActions({
     | "edit_note"
     | "edit_tags"
     | "favorite"
+    | "reading_state"
     | "pin"
     | "refresh_link_preview"
     | "revoke"
@@ -94,6 +99,10 @@ export function EntryActions({
   useEffect(() => {
     setPinned(isPinned);
   }, [isPinned]);
+
+  useEffect(() => {
+    setEntryReadingState(readingState);
+  }, [readingState]);
 
   useEffect(() => {
     setEntryNote(note || "");
@@ -272,6 +281,7 @@ export function EntryActions({
     favorite?: boolean;
     note?: string | null;
     pinned?: boolean;
+    readingState?: ReadingState;
     tags?: string[];
   }) {
     const response = await fetch(`/api/v1/entries/${entryId}`, {
@@ -288,6 +298,7 @@ export function EntryActions({
           isFavorite?: boolean;
           note?: string | null;
           pinnedAt?: string | null;
+          readingState?: ReadingState;
           tags?: string[];
         };
       };
@@ -305,6 +316,8 @@ export function EntryActions({
               ? t("actions.pin_failed")
               : input.note !== undefined
                 ? t("actions.note_failed")
+              : input.readingState
+                ? t("actions.reading_state_failed")
               : Array.isArray(input.tags)
                 ? t("actions.tags_failed")
                 : t("actions.favorite_failed"))
@@ -314,6 +327,7 @@ export function EntryActions({
     setFavorite(Boolean(payload.data.entry.isFavorite));
     setArchived(Boolean(payload.data.entry.archivedAt));
     setPinned(Boolean(payload.data.entry.pinnedAt));
+    setEntryReadingState(payload.data.entry.readingState || "INBOX");
     setEntryNote(payload.data.entry.note || "");
     setNoteDraft(payload.data.entry.note || "");
     setEntryTags(payload.data.entry.tags || []);
@@ -374,6 +388,25 @@ export function EntryActions({
       setIsOpen(false);
     } catch (error) {
       setTransientStatus(error instanceof Error ? error.message : t("actions.pin_failed"));
+    } finally {
+      setLoadingAction("");
+    }
+  }
+
+  async function handleReadingStateChange(nextReadingState: ReadingState) {
+    setLoadingAction("reading_state");
+    setStatus("");
+
+    try {
+      await updateEntryState({
+        readingState: nextReadingState
+      });
+      setTransientStatus(getReadingStateSuccessLabel(t, nextReadingState));
+      setIsOpen(false);
+    } catch (error) {
+      setTransientStatus(
+        error instanceof Error ? error.message : t("actions.reading_state_failed")
+      );
     } finally {
       setLoadingAction("");
     }
@@ -575,6 +608,30 @@ export function EntryActions({
                 label={archived ? t("actions.unarchive") : t("actions.archive")}
                 loading={loadingAction === "archive"}
                 onClick={() => void handleArchiveToggle()}
+              />
+              <ActionMenuButton
+                icon={<InboxIcon active={entryReadingState === "INBOX"} />}
+                label={t("actions.mark_inbox")}
+                loading={loadingAction === "reading_state"}
+                onClick={() => void handleReadingStateChange("INBOX")}
+              />
+              <ActionMenuButton
+                icon={<LaterIcon active={entryReadingState === "LATER"} />}
+                label={t("actions.mark_later")}
+                loading={loadingAction === "reading_state"}
+                onClick={() => void handleReadingStateChange("LATER")}
+              />
+              <ActionMenuButton
+                icon={<ReadingIcon active={entryReadingState === "READING"} />}
+                label={t("actions.mark_reading")}
+                loading={loadingAction === "reading_state"}
+                onClick={() => void handleReadingStateChange("READING")}
+              />
+              <ActionMenuButton
+                icon={<DoneIcon active={entryReadingState === "DONE"} />}
+                label={t("actions.mark_done")}
+                loading={loadingAction === "reading_state"}
+                onClick={() => void handleReadingStateChange("DONE")}
               />
               <ActionMenuButton
                 icon={<NoteIcon />}
@@ -944,6 +1001,82 @@ function ArchiveRestoreIcon() {
       <path strokeLinecap="round" strokeLinejoin="round" d="M3.4 5.4h13.2v3.2H3.4z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M4.6 8.6h10.8v6.2a1.2 1.2 0 0 1-1.2 1.2H5.8a1.2 1.2 0 0 1-1.2-1.2V8.6Z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="m10 12.9 2.3-2.3M10 12.9l-2.3-2.3M10 12.9V9.3" />
+    </svg>
+  );
+}
+
+function getReadingStateSuccessLabel(
+  t: ReturnType<typeof useI18n>["t"],
+  readingState: ReadingState
+) {
+  switch (readingState) {
+    case "LATER":
+      return t("actions.marked_later");
+    case "READING":
+      return t("actions.marked_reading");
+    case "DONE":
+      return t("actions.marked_done");
+    default:
+      return t("actions.marked_inbox");
+  }
+}
+
+function InboxIcon({ active = false }: { active?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="h-4 w-4"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.7 6.1h12.6v8.2H3.7z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.7 10.9h3.1l1.2 1.7h4l1.2-1.7h3.1" />
+    </svg>
+  );
+}
+
+function LaterIcon({ active = false }: { active?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="h-4 w-4"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <circle cx="10" cy="10" r="6.3" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10 6.8v3.6l2.4 1.4" />
+    </svg>
+  );
+}
+
+function ReadingIcon({ active = false }: { active?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="h-4 w-4"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.4 4.5h4.2a2 2 0 0 1 2 2v8.6H6.5a2.1 2.1 0 0 0-2.1 2V4.5Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.6 4.5h-4.2a2 2 0 0 0-2 2v8.6h4.1a2.1 2.1 0 0 1 2.1 2V4.5Z" />
+    </svg>
+  );
+}
+
+function DoneIcon({ active = false }: { active?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="h-4 w-4"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <circle cx="10" cy="10" r="6.6" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m7 10.2 2 2.1 4-4.4" />
     </svg>
   );
 }

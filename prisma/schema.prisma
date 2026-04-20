@@ -49,6 +49,7 @@ model Entry {
   linkFetchRequestedAt DateTime?
   linkFetchedAt DateTime?
   linkPublishedAt DateTime?
+  readingState String   @default("INBOX") @db.VarChar(24)
   pinnedAt DateTime?
   isFavorite Boolean    @default(false)
   archivedAt DateTime?
@@ -69,6 +70,7 @@ model Entry {
   @@index([canonicalUrl, createdAt(sort: Desc)])
   @@index([linkFetchedAt, createdAt(sort: Desc)])
   @@index([linkFetchStatus, createdAt(sort: Desc)])
+  @@index([readingState, createdAt(sort: Desc)])
 }
 
 model Asset {
@@ -97,6 +99,7 @@ model SavedView {
   name      String    @db.VarChar(64)
   query     String?   @db.Text
   tagName   String?   @db.VarChar(64)
+  readingState String? @db.VarChar(24)
   entryType EntryType?
   entryView String    @default("ACTIVE") @db.VarChar(24)
   duplicatesOnly Boolean @default(false)
@@ -105,6 +108,7 @@ model SavedView {
 
   @@index([updatedAt])
   @@index([tagName, updatedAt])
+  @@index([readingState, updatedAt])
 }
 
 model Tag {

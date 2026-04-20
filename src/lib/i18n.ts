@@ -75,6 +75,7 @@ export type MessageKey =
   | "entry.note"
   | "entry.share_revoked"
   | "entry.open"
+  | "entry.read"
   | "entry.download"
   | "entry.open_new_window"
   | "search.matches"
@@ -116,6 +117,10 @@ export type MessageKey =
   | "actions.image_copied"
   | "actions.favorite"
   | "actions.unfavorite"
+  | "actions.mark_inbox"
+  | "actions.mark_later"
+  | "actions.mark_reading"
+  | "actions.mark_done"
   | "actions.pin"
   | "actions.unpin"
   | "actions.archive"
@@ -124,6 +129,11 @@ export type MessageKey =
   | "actions.favorite_added"
   | "actions.favorite_removed"
   | "actions.favorite_failed"
+  | "actions.marked_inbox"
+  | "actions.marked_later"
+  | "actions.marked_reading"
+  | "actions.marked_done"
+  | "actions.reading_state_failed"
   | "actions.pinned"
   | "actions.unpinned"
   | "actions.pin_failed"
@@ -148,6 +158,10 @@ export type MessageKey =
   | "actions.batch_unpinned"
   | "actions.batch_favorited"
   | "actions.batch_unfavorited"
+  | "actions.batch_marked_inbox"
+  | "actions.batch_marked_later"
+  | "actions.batch_marked_reading"
+  | "actions.batch_marked_done"
   | "actions.batch_archived"
   | "actions.batch_unarchived"
   | "actions.batch_deleted"
@@ -187,6 +201,17 @@ export type MessageKey =
   | "settings.save"
   | "settings.saving"
   | "settings.saved"
+  | "reading.filter_all"
+  | "reading.state_inbox"
+  | "reading.state_later"
+  | "reading.state_reading"
+  | "reading.state_done"
+  | "reader.eyebrow"
+  | "reader.title"
+  | "reader.back_home"
+  | "reader.open_original"
+  | "reader.link_excerpt"
+  | "reader.pdf_mobile_hint"
   | "link.status_pending"
   | "link.status_pending_hint"
   | "link.status_processing"
@@ -340,6 +365,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "entry.note": "备注",
     "entry.share_revoked": "分享已撤销",
     "entry.open": "打开",
+    "entry.read": "阅读",
     "entry.download": "下载",
     "entry.open_new_window": "新窗口打开",
     "search.matches": "命中来源",
@@ -381,6 +407,10 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.image_copied": "图片已复制",
     "actions.favorite": "加入收藏",
     "actions.unfavorite": "取消收藏",
+    "actions.mark_inbox": "标记为未处理",
+    "actions.mark_later": "标记为稍后读",
+    "actions.mark_reading": "标记为处理中",
+    "actions.mark_done": "标记为已读",
     "actions.pin": "置顶",
     "actions.unpin": "取消置顶",
     "actions.archive": "归档",
@@ -389,6 +419,11 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.favorite_added": "已加入收藏",
     "actions.favorite_removed": "已取消收藏",
     "actions.favorite_failed": "收藏操作失败",
+    "actions.marked_inbox": "已标记为未处理",
+    "actions.marked_later": "已标记为稍后读",
+    "actions.marked_reading": "已标记为处理中",
+    "actions.marked_done": "已标记为已读",
+    "actions.reading_state_failed": "阅读状态更新失败",
     "actions.pinned": "已置顶",
     "actions.unpinned": "已取消置顶",
     "actions.pin_failed": "置顶操作失败",
@@ -413,6 +448,10 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.batch_unpinned": "已取消置顶 {count} 条内容",
     "actions.batch_favorited": "已收藏 {count} 条内容",
     "actions.batch_unfavorited": "已取消收藏 {count} 条内容",
+    "actions.batch_marked_inbox": "已标记 {count} 条内容为未处理",
+    "actions.batch_marked_later": "已标记 {count} 条内容为稍后读",
+    "actions.batch_marked_reading": "已标记 {count} 条内容为处理中",
+    "actions.batch_marked_done": "已标记 {count} 条内容为已读",
     "actions.batch_archived": "已归档 {count} 条内容",
     "actions.batch_unarchived": "已取消归档 {count} 条内容",
     "actions.batch_deleted": "已删除 {count} 条内容",
@@ -488,6 +527,17 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "settings.save": "保存设置",
     "settings.saving": "保存中...",
     "settings.saved": "设置已保存",
+    "reading.filter_all": "全部阅读状态",
+    "reading.state_inbox": "未处理",
+    "reading.state_later": "稍后读",
+    "reading.state_reading": "处理中",
+    "reading.state_done": "已读",
+    "reader.eyebrow": "阅读视图",
+    "reader.title": "内容阅读",
+    "reader.back_home": "回到时间流",
+    "reader.open_original": "打开原链接",
+    "reader.link_excerpt": "网页正文摘录",
+    "reader.pdf_mobile_hint": "手机端会优先使用系统阅读器打开 PDF，避免自动下载体验太重。",
     "link.status_pending": "等待抓取",
     "link.status_pending_hint": "这条链接已经排队，稍后会自动抓取标题、摘要和正文。",
     "link.status_processing": "抓取中",
@@ -602,6 +652,7 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "entry.note": "Note",
     "entry.share_revoked": "Share revoked",
     "entry.open": "Open",
+    "entry.read": "Read",
     "entry.download": "Download",
     "entry.open_new_window": "Open in new window",
     "search.matches": "Matches",
@@ -643,6 +694,10 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.image_copied": "Image copied",
     "actions.favorite": "Add to favorites",
     "actions.unfavorite": "Remove favorite",
+    "actions.mark_inbox": "Mark as inbox",
+    "actions.mark_later": "Mark for later",
+    "actions.mark_reading": "Mark as reading",
+    "actions.mark_done": "Mark as done",
     "actions.pin": "Pin",
     "actions.unpin": "Unpin",
     "actions.archive": "Archive",
@@ -651,6 +706,11 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.favorite_added": "Added to favorites",
     "actions.favorite_removed": "Removed from favorites",
     "actions.favorite_failed": "Favorite update failed",
+    "actions.marked_inbox": "Marked as inbox",
+    "actions.marked_later": "Marked for later",
+    "actions.marked_reading": "Marked as reading",
+    "actions.marked_done": "Marked as done",
+    "actions.reading_state_failed": "Could not update the reading state",
     "actions.pinned": "Pinned",
     "actions.unpinned": "Unpinned",
     "actions.pin_failed": "Pin update failed",
@@ -675,6 +735,10 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "actions.batch_unpinned": "Unpinned {count} items",
     "actions.batch_favorited": "Favorited {count} items",
     "actions.batch_unfavorited": "Removed {count} items from favorites",
+    "actions.batch_marked_inbox": "Marked {count} items as inbox",
+    "actions.batch_marked_later": "Marked {count} items for later",
+    "actions.batch_marked_reading": "Marked {count} items as reading",
+    "actions.batch_marked_done": "Marked {count} items as done",
     "actions.batch_archived": "Archived {count} items",
     "actions.batch_unarchived": "Moved {count} items back to active",
     "actions.batch_deleted": "Deleted {count} items",
@@ -750,6 +814,17 @@ const messagesByLocale: Record<AppLocale, Messages> = {
     "settings.save": "Save settings",
     "settings.saving": "Saving...",
     "settings.saved": "Settings saved",
+    "reading.filter_all": "All reading states",
+    "reading.state_inbox": "Inbox",
+    "reading.state_later": "Read later",
+    "reading.state_reading": "Reading",
+    "reading.state_done": "Done",
+    "reader.eyebrow": "Reader",
+    "reader.title": "Focused reading",
+    "reader.back_home": "Back to stream",
+    "reader.open_original": "Open original",
+    "reader.link_excerpt": "Article excerpt",
+    "reader.pdf_mobile_hint": "On phones, PDFs are better opened in the system viewer instead of forcing a heavy inline preview.",
     "link.status_pending": "Queued",
     "link.status_pending_hint": "This link is queued and will fetch its title, summary, and page text shortly.",
     "link.status_processing": "Fetching",

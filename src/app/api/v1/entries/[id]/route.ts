@@ -10,6 +10,7 @@ import {
   updateEntryState
 } from "@/lib/entries";
 import { refreshEntryLinkPreview } from "@/lib/link-preview";
+import { isReadingState, normalizeReadingState } from "@/lib/reading-states";
 import { getSettings } from "@/lib/settings";
 
 export const runtime = "nodejs";
@@ -72,14 +73,24 @@ export async function PATCH(request: Request, { params }: EntryRouteProps) {
       favorite?: boolean;
       note?: string | null;
       pinned?: boolean;
+      readingState?: string;
       tags?: string[];
     };
+
+    if (payload.readingState !== undefined && !isReadingState(payload.readingState)) {
+      return apiError({
+        code: "INVALID_READING_STATE",
+        message: "阅读状态无效。",
+        status: 400
+      });
+    }
 
     if (
       typeof payload.archived !== "boolean" &&
       typeof payload.favorite !== "boolean" &&
       payload.note === undefined &&
       typeof payload.pinned !== "boolean" &&
+      payload.readingState === undefined &&
       !Array.isArray(payload.tags)
     ) {
       return apiError({
@@ -95,13 +106,18 @@ export async function PATCH(request: Request, { params }: EntryRouteProps) {
       typeof payload.archived === "boolean" ||
       typeof payload.favorite === "boolean" ||
       payload.note !== undefined ||
-      typeof payload.pinned === "boolean"
+      typeof payload.pinned === "boolean" ||
+      payload.readingState !== undefined
     ) {
       currentEntry = await updateEntryState(params.id, {
         archived: payload.archived,
         favorite: payload.favorite,
         note: payload.note,
-        pinned: payload.pinned
+        pinned: payload.pinned,
+        readingState:
+          payload.readingState !== undefined
+            ? normalizeReadingState(payload.readingState)
+            : undefined
       });
     }
 
@@ -123,6 +139,7 @@ export async function PATCH(request: Request, { params }: EntryRouteProps) {
     ]);
 
     revalidatePath("/");
+    revalidatePath(`/read/${params.id}`);
 
     return apiOk({
       entry: serializeEntry(entry, {

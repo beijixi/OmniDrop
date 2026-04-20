@@ -11,6 +11,11 @@ import {
 import { normalizeEntryView } from "@/lib/entry-views";
 import { prisma } from "@/lib/prisma";
 import { resolveEntryType } from "@/lib/file-types";
+import {
+  normalizeReadingState,
+  normalizeReadingStateFilter,
+  type ReadingState
+} from "@/lib/reading-states";
 import type { SavedUpload } from "@/lib/storage";
 import { removeStoredAssets, removeStoredFiles } from "@/lib/storage";
 import { normalizeTagNames } from "@/lib/tags";
@@ -42,6 +47,7 @@ export type EntryWithRelations = Prisma.EntryGetPayload<{
 
 export type EntryFilters = {
   duplicatesOnly?: boolean;
+  reading?: string;
   q?: string;
   tag?: string;
   type?: string;
@@ -84,6 +90,10 @@ export type EntryBatchAction =
   | "archive"
   | "delete"
   | "favorite"
+  | "mark_done"
+  | "mark_inbox"
+  | "mark_later"
+  | "mark_reading"
   | "pin"
   | "unarchive"
   | "unfavorite"
@@ -249,6 +259,7 @@ export async function createEntriesBatch(input: {
             linkFetchStatus: canonicalUrl ? "PENDING" : "IDLE",
             message,
             messageFingerprint: buildMessageFingerprint(message),
+            readingState: "INBOX",
             senderHost,
             senderIp,
             senderName,
@@ -356,6 +367,7 @@ export async function updateEntryState(
     favorite?: boolean;
     note?: string | null;
     pinned?: boolean;
+    readingState?: ReadingState;
   }
 ) {
   const existing = await prisma.entry.findUnique({
@@ -365,6 +377,7 @@ export async function updateEntryState(
     select: {
       archivedAt: true,
       id: true,
+      readingState: true,
       pinnedAt: true
     }
   });
@@ -385,6 +398,10 @@ export async function updateEntryState(
 
   if (typeof input.pinned === "boolean") {
     data.pinnedAt = input.pinned ? existing.pinnedAt || new Date() : null;
+  }
+
+  if (input.readingState) {
+    data.readingState = normalizeReadingState(input.readingState, existing.readingState as ReadingState);
   }
 
   if (input.note !== undefined) {
@@ -815,6 +832,78 @@ export async function applyEntryBatchAction(
     ).count;
   }
 
+  if (action === "mark_inbox") {
+    changedCount = (
+      await prisma.entry.updateMany({
+        where: {
+          id: {
+            in: existingEntryIds
+          },
+          readingState: {
+            not: "INBOX"
+          }
+        },
+        data: {
+          readingState: "INBOX"
+        }
+      })
+    ).count;
+  }
+
+  if (action === "mark_later") {
+    changedCount = (
+      await prisma.entry.updateMany({
+        where: {
+          id: {
+            in: existingEntryIds
+          },
+          readingState: {
+            not: "LATER"
+          }
+        },
+        data: {
+          readingState: "LATER"
+        }
+      })
+    ).count;
+  }
+
+  if (action === "mark_reading") {
+    changedCount = (
+      await prisma.entry.updateMany({
+        where: {
+          id: {
+            in: existingEntryIds
+          },
+          readingState: {
+            not: "READING"
+          }
+        },
+        data: {
+          readingState: "READING"
+        }
+      })
+    ).count;
+  }
+
+  if (action === "mark_done") {
+    changedCount = (
+      await prisma.entry.updateMany({
+        where: {
+          id: {
+            in: existingEntryIds
+          },
+          readingState: {
+            not: "DONE"
+          }
+        },
+        data: {
+          readingState: "DONE"
+        }
+      })
+    ).count;
+  }
+
   return {
     action,
     changedCount,
@@ -988,6 +1077,7 @@ export async function getSharedEntry(token: string): Promise<EntryWithRelations 
 
 function buildEntryWhereParts(filters: EntryFilters): Prisma.EntryWhereInput[] {
   const query = filters.q?.trim();
+  const reading = normalizeReadingStateFilter(filters.reading, "ALL");
   const tag = normalizeTagNames(filters.tag || "").at(0);
   const type = isEntryType(filters.type) ? filters.type : undefined;
   const view = normalizeEntryView(filters.view);
@@ -1100,6 +1190,12 @@ function buildEntryWhereParts(filters: EntryFilters): Prisma.EntryWhereInput[] {
 
   if (type) {
     whereParts.push({ type });
+  }
+
+  if (reading !== "ALL") {
+    whereParts.push({
+      readingState: reading
+    });
   }
 
   if (view === "ACTIVE") {

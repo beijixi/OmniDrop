@@ -86,6 +86,12 @@ export function apiErrorFromUnknown(
           message: "请先输入至少一个标签。",
           status: 400
         });
+      case "INVALID_READING_STATE":
+        return apiError({
+          code: "INVALID_READING_STATE",
+          message: "阅读状态无效。",
+          status: 400
+        });
       case "EMPTY_DUPLICATE_KEEP_ENTRY":
         return apiError({
           code: "EMPTY_DUPLICATE_KEEP_ENTRY",

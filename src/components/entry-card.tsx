@@ -8,6 +8,7 @@ import type { AppLocale } from "@/lib/i18n";
 import { getFileVisual } from "@/lib/file-types";
 import type { EntrySearchSnippetSource, EntryWithRelations, TimelineEntry } from "@/lib/entries";
 import { t } from "@/lib/i18n";
+import type { ReadingState } from "@/lib/reading-states";
 import { cn, extractFirstExternalUrl, formatBytes, formatDateTime, normalizeExternalUrl, isIpv4Address } from "@/lib/utils";
 
 type EntryCardProps = {
@@ -51,6 +52,7 @@ export async function EntryCard({
       ? `${entry.senderHost} · ${visibleIp}`
       : entry.senderHost || visibleIp || t(locale, "entry.local_source");
   const copyableLink = entry.canonicalUrl || extractFirstExternalUrl(entry.message);
+  const readHref = !publicView ? `/read/${entry.id}` : null;
   const linkFetchState = getLinkFetchState(locale, entry.linkFetchStatus, entry.linkFetchError);
   const filePreviews = await Promise.all(
     nonImageAssets.map(async (asset) => ({
@@ -101,6 +103,7 @@ export async function EntryCard({
                   linkUrl={copyableLink}
                   messageText={entry.message}
                   note={entry.note}
+                  readingState={entry.readingState as ReadingState}
                   tags={entry.tags.map((item) => item.tag.name)}
                 />
               ) : null}
@@ -115,6 +118,12 @@ export async function EntryCard({
                   <span className="font-semibold text-slate-700">{displaySenderName}</span>
                   {entry.pinnedAt ? <EntryStateBadge label={t(locale, "entry.pinned")} tone="cyan" /> : null}
                   {entry.isFavorite ? <EntryStateBadge label={t(locale, "entry.favorite")} tone="amber" /> : null}
+                  {entry.readingState !== "INBOX" ? (
+                    <EntryStateBadge
+                      label={getReadingStateLabel(locale, entry.readingState as ReadingState)}
+                      tone={getReadingStateTone(entry.readingState as ReadingState)}
+                    />
+                  ) : null}
                   {entry.archivedAt ? <EntryStateBadge label={t(locale, "entry.archived")} tone="slate" /> : null}
                   {entry.duplicateSummary ? (
                     <EntryStateBadge
@@ -226,10 +235,23 @@ export async function EntryCard({
                     </section>
                   ) : null}
 
-                  {entry.message ? (
+                  {!entry.message && (copyableLink || readHref) ? (
                     <section>
-                      {copyableLink ? (
-                        <div className={cn("mb-2 flex", align === "right" ? "justify-end" : "justify-start")}>
+                      <div className={cn("flex gap-2", align === "right" ? "justify-end" : "justify-start")}>
+                        {readHref ? (
+                          <Link
+                            href={readHref}
+                            className={cn(
+                              "inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition",
+                              align === "right"
+                                ? "border-white/20 bg-white/10 text-white hover:border-white/35 hover:text-white"
+                                : "border-slate-200/90 bg-white/88 text-slate-700 hover:border-cyan-200 hover:text-cyan-800"
+                            )}
+                          >
+                            {t(locale, "entry.read")}
+                          </Link>
+                        ) : null}
+                        {copyableLink ? (
                           <CopyTextButton
                             value={copyableLink}
                             idleLabel={t(locale, "actions.copy_link")}
@@ -241,6 +263,41 @@ export async function EntryCard({
                                 : "border-cyan-100/90 bg-white/88 text-cyan-700 hover:border-cyan-200 hover:text-cyan-800"
                             )}
                           />
+                        ) : null}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {entry.message ? (
+                    <section>
+                      {copyableLink || readHref ? (
+                        <div className={cn("mb-2 flex gap-2", align === "right" ? "justify-end" : "justify-start")}>
+                          {readHref ? (
+                            <Link
+                              href={readHref}
+                              className={cn(
+                                "inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition",
+                                align === "right"
+                                  ? "border-white/20 bg-white/10 text-white hover:border-white/35 hover:text-white"
+                                  : "border-slate-200/90 bg-white/88 text-slate-700 hover:border-cyan-200 hover:text-cyan-800"
+                              )}
+                            >
+                              {t(locale, "entry.read")}
+                            </Link>
+                          ) : null}
+                          {copyableLink ? (
+                          <CopyTextButton
+                            value={copyableLink}
+                            idleLabel={t(locale, "actions.copy_link")}
+                            copiedLabel={t(locale, "actions.link_copied")}
+                            className={cn(
+                              "h-8 w-8 shrink-0",
+                              align === "right"
+                                ? "border-white/20 bg-white/10 text-white hover:border-white/35 hover:text-white"
+                                : "border-cyan-100/90 bg-white/88 text-cyan-700 hover:border-cyan-200 hover:text-cyan-800"
+                            )}
+                          />
+                          ) : null}
                         </div>
                       ) : null}
                       <div
@@ -776,6 +833,32 @@ function getSearchSourceLabel(locale: AppLocale, source: EntrySearchSnippetSourc
       return t(locale, "search.source_sender");
     default:
       return t(locale, "search.source_message");
+  }
+}
+
+function getReadingStateLabel(locale: AppLocale, readingState: ReadingState) {
+  switch (readingState) {
+    case "LATER":
+      return t(locale, "reading.state_later");
+    case "READING":
+      return t(locale, "reading.state_reading");
+    case "DONE":
+      return t(locale, "reading.state_done");
+    default:
+      return t(locale, "reading.state_inbox");
+  }
+}
+
+function getReadingStateTone(readingState: ReadingState): "amber" | "cyan" | "emerald" | "slate" {
+  switch (readingState) {
+    case "LATER":
+      return "amber";
+    case "READING":
+      return "cyan";
+    case "DONE":
+      return "emerald";
+    default:
+      return "slate";
   }
 }
 
